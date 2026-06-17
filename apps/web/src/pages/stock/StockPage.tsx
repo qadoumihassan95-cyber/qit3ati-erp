@@ -30,7 +30,8 @@ export default function StockPage() {
 
       <div className="card">
         <h3 className="font-extrabold mb-3">حركة المخزون الحالية</h3>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-right text-muted text-xs font-bold border-b-2 border-line">
               <th className="px-2 py-3">القطعة</th>
@@ -57,6 +58,7 @@ export default function StockPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

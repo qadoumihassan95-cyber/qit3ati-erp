@@ -23,7 +23,13 @@ import { TransfersModule } from './modules/transfers/transfers.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // Two named throttlers:
+    //   - default: 120 req/min per IP (generous, for normal app usage)
+    //   - auth:    5  req/min per IP (strict, brute-force protection on login)
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120 },
+      { name: 'auth',    ttl: 60_000, limit: 5   },
+    ]),
     PrismaModule,
     HealthModule,
     AuthModule,

@@ -43,7 +43,7 @@ export default function SettingsPage() {
         <p className="opacity-90 text-sm">غيّر الشعار، الاسم، اللون، الرقم الضريبي، الفروع — والبيانات معزولة تماماً عن بقية الشركات.</p>
       </div>
 
-      <form className="grid grid-cols-2 gap-4" onSubmit={handleSubmit((d) => mut.mutate(d))}>
+      <form className="grid grid-cols-1 lg:grid-cols-2 gap-4" onSubmit={handleSubmit((d) => mut.mutate(d))}>
         <div className="card">
           <h3 className="font-extrabold mb-3">هوية الشركة</h3>
           <Field label="الاسم القانوني" {...register('legalName')} />
@@ -71,7 +71,7 @@ export default function SettingsPage() {
           </label>
         </div>
 
-        <div className="col-span-2 flex justify-end">
+        <div className="lg:col-span-2 flex justify-end">
           <button type="submit" className="btn-primary" disabled={mut.isPending}>
             {mut.isPending ? 'جاري الحفظ…' : 'حفظ التعديلات'}
           </button>

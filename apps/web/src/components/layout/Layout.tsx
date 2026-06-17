@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const NAV = [
   { to: '/dashboard', label: 'لوحة التحكم',     icon: LayoutDashboard },
@@ -19,6 +19,7 @@ export default function Layout() {
     setBranch: s.setBranch, logout: s.logout,
   }));
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Apply white-label colors from tenant settings
   useEffect(() => {
@@ -28,22 +29,51 @@ export default function Layout() {
     }
   }, [user]);
 
+  // Close drawer when route changes
+  const closeDrawer = () => setDrawerOpen(false);
+
   const currentBranch = branches.find((b) => b.id === branchId) ?? branches[0];
 
   return (
-    <div className="min-h-screen grid grid-cols-[260px_1fr] bg-bg">
-      {/* Sidebar */}
-      <aside className="bg-gradient-to-b from-primary to-primary-dark text-white p-4 sticky top-0 h-screen overflow-y-auto">
+    <div className="min-h-screen md:grid md:grid-cols-[260px_1fr] bg-bg">
+      {/* Mobile overlay backdrop */}
+      {drawerOpen && (
+        <button
+          aria-label="إغلاق القائمة"
+          onClick={closeDrawer}
+          className="md:hidden fixed inset-0 bg-black/40 z-40"
+        />
+      )}
+
+      {/* Sidebar — fixed-drawer on mobile, sticky-column on desktop */}
+      <aside
+        className={
+          'bg-gradient-to-b from-primary to-primary-dark text-white p-4 ' +
+          'fixed inset-y-0 right-0 w-[260px] z-50 transition-transform duration-200 ease-out overflow-y-auto ' +
+          (drawerOpen ? 'translate-x-0' : 'translate-x-full') + ' ' +
+          'md:translate-x-0 md:static md:sticky md:top-0 md:h-screen md:z-auto'
+        }
+      >
         <div className="flex items-center gap-3 pb-4 border-b border-white/15 mb-4">
           <div className="w-11 h-11 rounded-xl bg-accent grid place-items-center font-extrabold text-xl">ق</div>
-          <div>
+          <div className="flex-1">
             <h1 className="font-extrabold text-lg">قِطَعتي</h1>
             <p className="text-white/60 text-[11px] font-semibold">AutoParts Cloud</p>
           </div>
+          <button
+            aria-label="إغلاق"
+            onClick={closeDrawer}
+            className="md:hidden text-white/80 hover:text-white"
+          >
+            <X size={22} />
+          </button>
         </div>
         <nav className="space-y-1">
           {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to}
+            <NavLink
+              key={to}
+              to={to}
+              onClick={closeDrawer}
               className={({ isActive }) =>
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition ' +
                 (isActive ? 'bg-white text-primary' : 'text-white/85 hover:bg-white/10')
@@ -56,35 +86,57 @@ export default function Layout() {
       </aside>
 
       {/* Main column */}
-      <div>
-        <header className="bg-white border-b border-line p-4 px-7 flex items-center gap-5 sticky top-0 z-10">
-          <div className="flex-1 max-w-xl relative">
+      <div className="min-w-0">
+        <header className="bg-white border-b border-line p-3 sm:p-4 px-4 sm:px-7 flex items-center gap-3 sm:gap-5 sticky top-0 z-10">
+          {/* Mobile hamburger */}
+          <button
+            aria-label="فتح القائمة"
+            onClick={() => setDrawerOpen(true)}
+            className="md:hidden text-primary hover:bg-bg p-1.5 rounded-lg -mr-1"
+          >
+            <Menu size={22} />
+          </button>
+
+          <div className="flex-1 min-w-0 max-w-xl relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input className="input pr-10" placeholder="ابحث بالاسم أو رقم القطعة أو OEM أو الباركود..." />
+            <input
+              className="input pr-10 text-sm"
+              placeholder="ابحث بالاسم أو رقم القطعة أو OEM..."
+            />
           </div>
+
           {currentBranch && (
-            <select className="text-sm text-muted font-semibold bg-bg border border-line rounded-lg px-3 py-2"
-                    value={currentBranch.id}
-                    onChange={(e) => setBranch(e.target.value)}>
-              {branches.map((b) => <option key={b.id} value={b.id}>الفرع: {b.name}</option>)}
+            <select
+              className="hidden sm:block text-xs sm:text-sm text-muted font-semibold bg-bg border border-line rounded-lg px-2 sm:px-3 py-2 max-w-[180px]"
+              value={currentBranch.id}
+              onChange={(e) => setBranch(e.target.value)}
+            >
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           )}
-          <button className="relative text-xl text-muted hover:text-primary">
+
+          <button aria-label="التنبيهات" className="relative text-muted hover:text-primary p-1">
             <Bell size={20} />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
           </button>
-          <div className="flex items-center gap-2.5 font-bold text-sm">
+
+          <div className="flex items-center gap-2 font-bold text-sm">
             <div className="w-9 h-9 rounded-full bg-primary text-white grid place-items-center font-extrabold">
               {user?.fullName?.[0] ?? '؟'}
             </div>
-            <span>{user?.fullName}</span>
-            <button title="تسجيل خروج" className="text-muted hover:text-red-500" onClick={() => { logout(); navigate('/login'); }}>
+            <span className="hidden sm:inline">{user?.fullName}</span>
+            <button
+              aria-label="تسجيل الخروج"
+              title="تسجيل خروج"
+              className="text-muted hover:text-red-500 p-1"
+              onClick={() => { logout(); navigate('/login'); }}
+            >
               <LogOut size={18} />
             </button>
           </div>
         </header>
 
-        <main className="p-7">
+        <main className="p-3 sm:p-5 lg:p-7">
           <Outlet />
         </main>
       </div>

@@ -61,7 +61,7 @@ export default function PosPage() {
       <h1 className="text-2xl font-extrabold mb-1">نقطة البيع (POS)</h1>
       <p className="text-muted text-sm mb-6">بيع سريع بالباركود — اضغط القطعة لإضافتها للسلة</p>
 
-      <div className="grid grid-cols-[1fr_380px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4">
         <div>
           <div className="relative mb-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
@@ -69,7 +69,7 @@ export default function PosPage() {
                    value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {isLoading && <p className="col-span-3 text-center text-muted py-10">جاري التحميل…</p>}
             {!isLoading && (data?.items ?? []).map((p) => (
               <button key={p.id} onClick={() => add(p)} disabled={p.quantity <= 0}
@@ -84,7 +84,7 @@ export default function PosPage() {
         </div>
 
         {/* Cart */}
-        <div className="card h-fit sticky top-24">
+        <div className="card h-fit lg:sticky lg:top-24">
           <h3 className="font-extrabold mb-3">🛒 سلة البيع</h3>
           {cart.length === 0 ? (
             <p className="text-center text-muted text-sm py-8">السلة فارغة — اختر قطعة</p>

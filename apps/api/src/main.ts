@@ -20,10 +20,27 @@ async function bootstrap() {
   if (typeof httpAdapter?.set === 'function') httpAdapter.set('trust proxy', 1);
 
   app.setGlobalPrefix(prefix);
-  app.use(helmet({ crossOriginResourcePolicy: false }));
+
+  // Security headers — Helmet must run before CORS so headers attach to every response.
+  // Explicit config so we know exactly what's enabled and behaviour is consistent
+  // across Render's reverse proxy.
+  app.use(helmet({
+    contentSecurityPolicy: false,            // API only, no inline scripts — CSP managed at the static site
+    crossOriginResourcePolicy: false,        // allow the Web origin to read JSON
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 15552000, includeSubDomains: true, preload: false },
+    frameguard: { action: 'deny' },
+    noSniff: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xssFilter: true,
+  }));
+
   app.enableCors({
     origin: origin.split(',').map((s) => s.trim()),
     credentials: true,
+    methods: 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 600,
   });
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,

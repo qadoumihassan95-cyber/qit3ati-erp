@@ -24,14 +24,14 @@ export default function DashboardPage() {
         نظرة سريعة على أداء المحل اليوم — {new Date().toLocaleDateString('ar-JO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <KpiCard color="green" icon={<DollarSign />} label="مبيعات اليوم" value={isLoading ? '—' : fmtJOD(data?.salesTodayTotal ?? 0)} />
         <KpiCard color="blue"  icon={<FileText />}   label="عدد الفواتير" value={isLoading ? '—' : String(data?.salesTodayCount ?? 0)} />
         <KpiCard color="amber" icon={<Wallet />}     label="مبيعات الشهر"  value={isLoading ? '—' : fmtJOD(data?.salesMonthTotal ?? 0)} />
         <KpiCard color="red"   icon={<AlertTriangle />} label="قطع تحت الحد الأدنى" value={isLoading ? '—' : String(data?.lowStockAlerts?.length ?? 0)} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
           <h3 className="font-extrabold mb-3">تنبيهات نفاد المخزون</h3>
           {(data?.lowStockAlerts?.length ?? 0) === 0 ? (

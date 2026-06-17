@@ -36,11 +36,17 @@ export class TransfersService {
     if (!input.items?.length) throw new BadRequestException('transfer has no items');
 
     return this.prisma.$transaction(async (tx) => {
+      // Validate source branch belongs to tenant
+      const srcBranch = await tx.branch.findFirst({
+        where: { id: input.fromBranch, tenantId, deletedAt: null },
+      });
+      if (!srcBranch) throw new NotFoundException('الفرع المصدر غير موجود');
+
       const fromWarehouse = await tx.warehouse.findFirst({
         where: { tenantId, branchId: input.fromBranch },
         orderBy: { isMain: 'desc' },
       });
-      if (!fromWarehouse) throw new BadRequestException('source branch has no warehouse');
+      if (!fromWarehouse) throw new BadRequestException('الفرع المصدر لا يحوي مستودعاً');
 
       // ensure destination branch exists (and presumably has a warehouse, which we'll need on receive)
       const destBranch = await tx.branch.findFirst({

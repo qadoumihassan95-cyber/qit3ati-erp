@@ -119,7 +119,7 @@ export default function TransfersPage() {
         <div className="card mb-6">
           <h3 className="font-extrabold text-lg mb-4">إنشاء تحويل جديد</h3>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div>
               <label className="block text-sm font-bold mb-1.5">من الفرع</label>
               <select className="input" value={fromBranch}
@@ -140,14 +140,14 @@ export default function TransfersPage() {
           </div>
 
           {fromBranch && (
-            <div className="grid grid-cols-[1fr_360px] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
               <div>
                 <div className="relative mb-3">
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
                   <input className="input pr-10" placeholder="ابحث عن قطعة..."
                          value={partQuery} onChange={(e) => setPartQuery(e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-1">
                   {(partsQ.data?.items ?? []).map((p) => (
                     <button key={p.id} onClick={() => addLine(p)}
                             disabled={p.quantity <= 0}
@@ -196,7 +196,8 @@ export default function TransfersPage() {
 
       <div className="card">
         <h3 className="font-extrabold mb-3">حركة التحويلات</h3>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <table className="w-full text-sm min-w-[720px]">
           <thead>
             <tr className="text-right text-muted text-xs font-bold border-b-2 border-line">
               <th className="px-2 py-3">التاريخ</th>
@@ -242,6 +243,7 @@ export default function TransfersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -1232,6 +1232,18 @@ model Notification {
   @@map("notifications")
 }
 
+/// Atomic sequence counters per tenant — used for invoice numbers etc.
+/// Prevents race conditions when multiple invoices are created concurrently.
+model TenantCounter {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  counterKey String   @map("counter_key") @db.VarChar(60)
+  value      BigInt   @default(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@id([tenantId, counterKey])
+  @@map("tenant_counters")
+}
+
 model TelegramLink {
   id              String   @id @default(uuid()) @db.Uuid
   tenantId        String   @map("tenant_id") @db.Uuid

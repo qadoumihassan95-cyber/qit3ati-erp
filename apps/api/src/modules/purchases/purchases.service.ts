@@ -36,13 +36,19 @@ export class PurchasesService {
     if (!input.items?.length) throw new BadRequestException('purchase has no items');
 
     return this.prisma.$transaction(async (tx) => {
+      // Validate branch belongs to tenant first (clear error message).
+      const branch = await tx.branch.findFirst({
+        where: { id: input.branchId, tenantId, deletedAt: null },
+      });
+      if (!branch) throw new NotFoundException('الفرع غير موجود أو غير مفعّل');
+
       // resolve target warehouse (use the branch's main warehouse if present, else any)
       const warehouse = await tx.warehouse.findFirst({
         where: { tenantId, branchId: input.branchId },
         orderBy: { isMain: 'desc' },
       });
       if (!warehouse) {
-        throw new BadRequestException('branch has no warehouse — create one first');
+        throw new BadRequestException('لا يوجد مستودع لهذا الفرع — أنشئ مستودعاً أولاً');
       }
 
       // validate supplier if provided
@@ -217,11 +223,15 @@ export class PurchasesService {
     return inv;
   }
 
+  /** Atomic counter — see SalesService.nextInvoiceNo for explanation. */
   private async nextInvoiceNo(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await tx.purchaseInvoice.count({
-      where: { tenantId, invoiceNo: { startsWith: `PUR-${year}-` } },
+    const key = `purchases:${year}`;
+    const counter = await tx.tenantCounter.upsert({
+      where: { tenantId_counterKey: { tenantId, counterKey: key } },
+      update: { value: { increment: 1 } },
+      create: { tenantId, counterKey: key, value: 1 },
     });
-    return `PUR-${year}-${String(count + 1).padStart(4, '0')}`;
+    return `PUR-${year}-${String(counter.value).padStart(4, '0')}`;
   }
 }
