@@ -1,10 +1,11 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -19,17 +20,20 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
+import { FinanceModule }   from './modules/finance/finance.module';
+import { ReturnsModule }   from './modules/returns/returns.module';
+import { ReportsModule }   from './modules/reports/reports.module';
+import { InvoicesModule }  from './modules/invoices/invoices.module';
+import { AuditModule }     from './modules/audit/audit.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // Two named throttlers:
-    //   - default: 120 req/min per IP (generous, for normal app usage)
-    //   - auth:    5  req/min per IP (strict, brute-force protection on login)
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 120 },
-      { name: 'auth',    ttl: 60_000, limit: 5   },
-    ]),
+    // Global throttler: 120 req/min per IP by default.
+    // Strict 5/min on `/auth/login` is applied via the `@Throttle` decorator on
+    // that route. Using a single tracker keeps startup simple and predictable
+    // (named throttlers were causing edge-case startup issues on Render).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -44,9 +48,15 @@ import { TransfersModule } from './modules/transfers/transfers.module';
     SettingsModule,
     PurchasesModule,
     TransfersModule,
+    FinanceModule,
+    ReturnsModule,
+    ReportsModule,
+    InvoicesModule,
+    AuditModule,
   ],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD,       useClass: ThrottlerGuard   },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule implements NestModule {

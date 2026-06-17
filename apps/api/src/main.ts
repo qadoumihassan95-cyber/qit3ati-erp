@@ -22,8 +22,8 @@ async function bootstrap() {
   app.setGlobalPrefix(prefix);
 
   // Security headers — Helmet must run before CORS so headers attach to every response.
-  // Explicit config so we know exactly what's enabled and behaviour is consistent
-  // across Render's reverse proxy.
+  // Conservative config (only well-supported options across helmet 7.x versions
+  // and Render's reverse proxy).
   app.use(helmet({
     contentSecurityPolicy: false,            // API only, no inline scripts — CSP managed at the static site
     crossOriginResourcePolicy: false,        // allow the Web origin to read JSON
@@ -32,7 +32,6 @@ async function bootstrap() {
     frameguard: { action: 'deny' },
     noSniff: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    xssFilter: true,
   }));
 
   app.enableCors({

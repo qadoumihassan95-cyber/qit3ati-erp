@@ -17,10 +17,10 @@ export class AuthController {
 
   /**
    * Strict rate-limited login: 5 attempts per minute per IP.
-   * Prevents brute-force credential stuffing.
+   * Overrides the global throttle for this route only.
    */
   @Public()
-  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password, dto.tenantSlug);

@@ -1,15 +1,23 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
-const NAV = [
-  { to: '/dashboard', label: 'لوحة التحكم',     icon: LayoutDashboard },
+interface NavItem { to: string; label: string; icon: React.ComponentType<{ size?: number }>; section?: string }
+const NAV: NavItem[] = [
+  { to: '/dashboard', label: 'لوحة التحكم',     icon: LayoutDashboard, section: 'الرئيسية' },
   { to: '/pos',       label: 'نقطة البيع POS',  icon: ShoppingCart },
-  { to: '/parts',     label: 'الأصناف والقطع',  icon: Wrench },
+  { to: '/parts',     label: 'الأصناف والقطع',  icon: Wrench,          section: 'المخزون' },
   { to: '/stock',     label: 'المخزون والفروع', icon: Boxes },
   { to: '/purchases', label: 'المشتريات',       icon: Truck },
   { to: '/transfers', label: 'تحويلات الفروع',  icon: ArrowLeftRight },
+  { to: '/returns',   label: 'المرتجعات',       icon: RotateCcw },
+  { to: '/customers', label: 'العملاء',         icon: Users,           section: 'العلاقات' },
+  { to: '/suppliers', label: 'الموردون',        icon: Building2 },
+  { to: '/expenses',  label: 'المصاريف',        icon: Receipt,         section: 'المال' },
+  { to: '/reports',   label: 'التقارير',        icon: FileBarChart },
+  { to: '/branches',  label: 'الفروع',          icon: Building,        section: 'الإدارة' },
+  { to: '/audit',     label: 'سجل التدقيق',     icon: Shield },
   { to: '/settings',  label: 'الإعدادات والهوية', icon: SettingsIcon },
 ];
 
@@ -68,19 +76,21 @@ export default function Layout() {
             <X size={22} />
           </button>
         </div>
-        <nav className="space-y-1">
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={closeDrawer}
-              className={({ isActive }) =>
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition ' +
-                (isActive ? 'bg-white text-primary' : 'text-white/85 hover:bg-white/10')
-              }>
-              <Icon size={18} />
-              <span>{label}</span>
-            </NavLink>
+        <nav className="space-y-0.5">
+          {NAV.map(({ to, label, icon: Icon, section }) => (
+            <div key={to}>
+              {section && <div className="text-white/50 text-[10px] font-extrabold uppercase tracking-wider mt-3 mb-1.5 px-2">{section}</div>}
+              <NavLink
+                to={to}
+                onClick={closeDrawer}
+                className={({ isActive }) =>
+                  'flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-semibold transition ' +
+                  (isActive ? 'bg-white text-primary shadow-sm' : 'text-white/85 hover:bg-white/10')
+                }>
+                <Icon size={17} />
+                <span>{label}</span>
+              </NavLink>
+            </div>
           ))}
         </nav>
       </aside>

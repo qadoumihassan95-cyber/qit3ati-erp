@@ -46,10 +46,12 @@ const PERMISSIONS: Array<{ code: string; module: string; labelAr: string }> = [
   { code: 'purchase.create', module: 'purchases', labelAr: 'إنشاء فاتورة شراء' },
   // accounting
   { code: 'accounting.view',   module: 'accounting', labelAr: 'عرض التقارير المالية' },
-  { code: 'accounting.entry',  module: 'accounting', labelAr: 'إدخال قيد محاسبي' },
+  { code: 'accounting.entry',  module: 'accounting', labelAr: 'إدخال قيد/سند/مصروف' },
   // admin
   { code: 'users.manage',   module: 'admin',     labelAr: 'إدارة المستخدمين والصلاحيات' },
   { code: 'settings.edit',  module: 'admin',     labelAr: 'تعديل الإعدادات والهوية' },
+  // audit
+  { code: 'audit.view',     module: 'admin',     labelAr: 'عرض سجل التدقيق' },
 ];
 
 // Permission bundles per role

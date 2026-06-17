@@ -47,14 +47,28 @@ export default function PosPage() {
         items: cart.map((c) => ({ partId: c.partId, qty: c.qty, unitPrice: c.unitPrice })),
       })).data;
     },
-    onSuccess: () => {
+    onSuccess: (invoice: any) => {
       setCart([]);
       qc.invalidateQueries({ queryKey: ['pos-parts'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
-      alert('✅ تم إصدار الفاتورة');
+      // Open printable invoice in a new tab — uses JWT via cookie? No, JWT is in auth header.
+      // Solution: open backend URL with token query param (already requires JWT via Bearer);
+      // pragmatic alternative: ask if user wants to print, then fetch with auth + open blob.
+      if (window.confirm(`✅ تم إصدار الفاتورة ${invoice.invoiceNo}\n\nهل تريد طباعتها الآن؟`)) {
+        printInvoice(invoice.id).catch((e) => alert('فشل تحميل الفاتورة: ' + e.message));
+      }
     },
     onError: (e: any) => alert(e?.response?.data?.message ?? e.message),
   });
+
+  async function printInvoice(id: string) {
+    // Fetch HTML with our JWT, then open in a new window for printing.
+    const res = await api.get(`/invoices/${id}/print`, { responseType: 'text' });
+    const html = res.data as string;
+    const w = window.open('', '_blank');
+    if (!w) { alert('السماح بالنوافذ المنبثقة مطلوب للطباعة'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
 
   return (
     <div>
