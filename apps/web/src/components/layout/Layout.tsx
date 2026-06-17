@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
@@ -8,6 +8,8 @@ const NAV = [
   { to: '/pos',       label: 'نقطة البيع POS',  icon: ShoppingCart },
   { to: '/parts',     label: 'الأصناف والقطع',  icon: Wrench },
   { to: '/stock',     label: 'المخزون والفروع', icon: Boxes },
+  { to: '/purchases', label: 'المشتريات',       icon: Truck },
+  { to: '/transfers', label: 'تحويلات الفروع',  icon: ArrowLeftRight },
   { to: '/settings',  label: 'الإعدادات والهوية', icon: SettingsIcon },
 ];
 

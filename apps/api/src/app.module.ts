@@ -17,6 +17,8 @@ import { SalesModule } from './modules/sales/sales.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { PurchasesModule } from './modules/purchases/purchases.module';
+import { TransfersModule } from './modules/transfers/transfers.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { SettingsModule } from './modules/settings/settings.module';
     CustomersModule,
     SuppliersModule,
     SettingsModule,
+    PurchasesModule,
+    TransfersModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

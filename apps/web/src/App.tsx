@@ -6,6 +6,8 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import PartsPage from '@/pages/parts/PartsPage';
 import PosPage from '@/pages/pos/PosPage';
 import StockPage from '@/pages/stock/StockPage';
+import PurchasesPage from '@/pages/purchases/PurchasesPage';
+import TransfersPage from '@/pages/transfers/TransfersPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -31,6 +33,8 @@ export default function App() {
         <Route path="parts"     element={<PartsPage />} />
         <Route path="pos"       element={<PosPage />} />
         <Route path="stock"     element={<StockPage />} />
+        <Route path="purchases" element={<PurchasesPage />} />
+        <Route path="transfers" element={<TransfersPage />} />
         <Route path="settings"  element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
