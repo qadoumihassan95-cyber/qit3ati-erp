@@ -460,7 +460,7 @@ model Part {
   substitutesA  PartSubstitute[] @relation("PartA")
   substitutesB  PartSubstitute[] @relation("PartB")
   customerSpecialPrices CustomerSpecialPrice[]
-  priceTiers   PriceTier[]
+  priceTiers   PartPriceTier[]
   purchaseItems PurchaseItem[]
   salesItems    SalesItem[]
   countItems    StockCountItem[]
@@ -697,7 +697,7 @@ model CustomerSpecialPrice {
   @@map("customer_special_prices")
 }
 
-model PriceTier {
+model PartPriceTier {
   id       String   @id @default(uuid()) @db.Uuid
   tenantId String   @map("tenant_id") @db.Uuid
   partId   String?  @map("part_id") @db.Uuid
