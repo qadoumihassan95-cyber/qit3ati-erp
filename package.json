@@ -14,7 +14,7 @@
     "build": "npm --workspace apps/api run build && npm --workspace apps/web run build",
     "build:api":   "npm install && npx prisma generate --schema prisma/schema.prisma && npm --workspace apps/api run build",
     "build:web":   "npm install && npm --workspace apps/web run build",
-    "start:prod":  "npx prisma migrate deploy --schema prisma/schema.prisma && node apps/api/dist/main.js",
+    "start:prod":  "npx prisma db push --schema prisma/schema.prisma --accept-data-loss --skip-generate && node apps/api/dist/main.js",
     "db:generate": "npx prisma generate --schema prisma/schema.prisma",
     "db:migrate":  "npx prisma migrate dev --schema prisma/schema.prisma",
     "db:deploy":   "npx prisma migrate deploy --schema prisma/schema.prisma",
@@ -26,12 +26,12 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "prettier": "^3.2.5",
-    "tsx": "^4.7.0",
-    "typescript": "^5.4.0",
-    "prisma": "^5.16.0"
+    "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@prisma/client": "^5.16.0"
+    "@prisma/client": "^5.16.0",
+    "prisma": "^5.16.0",
+    "tsx": "^4.7.0"
   },
   "engines": {
     "node": ">=20.0.0",
