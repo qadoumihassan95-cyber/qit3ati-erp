@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { api } from '@/lib/api';
@@ -211,7 +211,7 @@ function ReceiptForm({ customer, onDone }: { customer: Customer; onDone: () => v
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <div>
       <label className="block text-sm font-bold mb-1.5">{label}</label>

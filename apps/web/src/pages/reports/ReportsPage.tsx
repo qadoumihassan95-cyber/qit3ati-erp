@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { fmtMoney, fmtNum, fmtDate } from '@/lib/format';
@@ -8,7 +8,7 @@ import { TrendingUp, FileBarChart, Users, Building2, Package, BarChart3 } from '
 
 type Tab = 'pnl' | 'aging-customers' | 'aging-suppliers' | 'turnover' | 'profit-by-part';
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'pnl',              label: 'الأرباح والخسائر',     icon: <TrendingUp size={16} /> },
   { id: 'profit-by-part',   label: 'الأرباح حسب القطعة',   icon: <BarChart3 size={16} /> },
   { id: 'turnover',         label: 'دوران المخزون',         icon: <Package size={16} /> },

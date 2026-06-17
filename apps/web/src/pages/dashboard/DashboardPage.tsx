@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { DollarSign, FileText, Wallet, AlertTriangle } from 'lucide-react';
@@ -57,7 +58,7 @@ export default function DashboardPage() {
   );
 }
 
-function KpiCard({ color, icon, label, value }: { color: 'green'|'blue'|'amber'|'red'; icon: React.ReactNode; label: string; value: string }) {
+function KpiCard({ color, icon, label, value }: { color: 'green'|'blue'|'amber'|'red'; icon: ReactNode; label: string; value: string }) {
   const tones: Record<string, string> = {
     green: 'bg-green-100 text-green-700',
     blue:  'bg-blue-100 text-blue-700',

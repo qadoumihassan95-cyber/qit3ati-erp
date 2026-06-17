@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Layout from '@/components/layout/Layout';
@@ -17,7 +18,7 @@ import BranchesPage from '@/pages/branches/BranchesPage';
 import AuditPage from '@/pages/audit/AuditPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
 
-function Protected({ children }: { children: React.ReactNode }) {
+function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;

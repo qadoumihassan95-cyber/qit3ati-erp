@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
-interface NavItem { to: string; label: string; icon: React.ComponentType<{ size?: number }>; section?: string }
+interface NavItem { to: string; label: string; icon: LucideIcon; section?: string }
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'لوحة التحكم',     icon: LayoutDashboard, section: 'الرئيسية' },
   { to: '/pos',       label: 'نقطة البيع POS',  icon: ShoppingCart },
