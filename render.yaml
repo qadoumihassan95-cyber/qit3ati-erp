@@ -1,0 +1,102 @@
+# =====================================================================
+#  Qit3ati ERP — Render Blueprint
+#  Deploys: PostgreSQL + NestJS API + React Static Site
+#  Docs: https://render.com/docs/blueprint-spec
+# =====================================================================
+
+databases:
+  - name: qit3ati-postgres
+    databaseName: qit3ati
+    user: qit3ati
+    plan: free                 # upgrade to "starter" for production (no 90-day expiry)
+    postgresMajorVersion: 16
+
+services:
+  # -------------------- NestJS API (Web Service) --------------------
+  - type: web
+    name: qit3ati-api
+    runtime: node
+    plan: free                 # upgrade to "starter" to disable cold starts
+    region: frankfurt          # closest Render region to Jordan
+    rootDir: .
+    buildCommand: npm install && npx prisma generate --schema prisma/schema.prisma && npm --workspace apps/api run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: api/v1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qit3ati-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true     # Render creates a strong random secret
+      - key: JWT_ACCESS_TTL
+        value: "3600"
+      - key: JWT_REFRESH_TTL
+        value: "2592000"
+      - key: DEFAULT_LOCALE
+        value: ar
+      - key: DEFAULT_TAX_RATE
+        value: "16.0"
+      - key: DEFAULT_CURRENCY
+        value: JOD
+      - key: CORS_ORIGIN
+        sync: false             # set this to the Web URL after first deploy
+      # Optional integrations — set later when needed:
+      - key: REDIS_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: JOFOTARA_API_URL
+        sync: false
+      - key: JOFOTARA_CLIENT_ID
+        sync: false
+      - key: JOFOTARA_SECRET_KEY
+        sync: false
+
+  # -------------------- React Web (Static Site) --------------------
+  - type: web
+    name: qit3ati-web
+    runtime: static
+    plan: free
+    region: frankfurt
+    rootDir: .
+    buildCommand: npm install && npm --workspace apps/web run build
+    staticPublishPath: ./apps/web/dist
+    autoDeploy: true
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    routes:
+      # SPA fallback — every unknown path serves index.html so React Router can handle it
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false             # set to "https://<api-host>/api/v1" after API deploys
+
+  # -------------------- Telegram Bot (optional Background Worker) --------------------
+  # Uncomment after you set TELEGRAM_BOT_TOKEN in the API service's env.
+  # - type: worker
+  #   name: qit3ati-bot
+  #   runtime: node
+  #   plan: free
+  #   region: frankfurt
+  #   rootDir: .
+  #   buildCommand: npm install && npm --workspace apps/bot run build
+  #   startCommand: npm --workspace apps/bot run start
+  #   envVars:
+  #     - key: TELEGRAM_BOT_TOKEN
+  #       sync: false
+  #     - key: API_BASE_URL
+  #       sync: false

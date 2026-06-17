@@ -1,0 +1,40 @@
+{
+  "name": "qit3ati-erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qit3ati / AutoParts Cloud — Multi-tenant ERP for Jordanian auto-parts shops",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:bot": "npm --workspace apps/bot run dev",
+    "build": "npm --workspace apps/api run build && npm --workspace apps/web run build",
+    "build:api":   "npm install && npx prisma generate --schema prisma/schema.prisma && npm --workspace apps/api run build",
+    "build:web":   "npm install && npm --workspace apps/web run build",
+    "start:prod":  "npx prisma migrate deploy --schema prisma/schema.prisma && node apps/api/dist/main.js",
+    "db:generate": "npx prisma generate --schema prisma/schema.prisma",
+    "db:migrate":  "npx prisma migrate dev --schema prisma/schema.prisma",
+    "db:deploy":   "npx prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed":     "tsx prisma/seed.ts",
+    "db:studio":   "npx prisma studio --schema prisma/schema.prisma",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json}\"",
+    "lint": "eslint \"apps/**/*.{ts,tsx}\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "prisma": "^5.16.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.16.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

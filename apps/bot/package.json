@@ -1,0 +1,21 @@
+{
+  "name": "@qit3ati/bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qit3ati Telegram bot — to be implemented next phase",
+  "scripts": {
+    "dev":   "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0"
+  }
+}

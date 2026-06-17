@@ -1,0 +1,167 @@
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+
+export interface CartItem {
+  partId: string;
+  qty: number;
+  unitPrice?: number;  // optional override; defaults to part.retailPrice (or wholesale by customer tier)
+  discount?: number;
+}
+
+export interface CreateSaleInput {
+  branchId: string;
+  customerId?: string;
+  posSessionId?: string;
+  paymentType?: 'cash' | 'credit' | 'card' | 'bank' | 'cheque';
+  discount?: number;
+  items: CartItem[];
+}
+
+@Injectable()
+export class SalesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createSale(tenantId: string, soldBy: string, input: CreateSaleInput) {
+    if (!input.items?.length) throw new BadRequestException('cart is empty');
+
+    // Atomic: read prices/stock, build invoice, decrement stock, write movements.
+    return this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenantSettings.findUnique({ where: { tenantId } });
+      const taxRate = Number(tenant?.taxRate ?? 16);
+
+      const customer = input.customerId
+        ? await tx.customer.findFirst({ where: { id: input.customerId, tenantId } })
+        : null;
+
+      // pull all parts at once + their stock at the branch
+      const partIds = input.items.map((i) => i.partId);
+      const parts = await tx.part.findMany({
+        where: { id: { in: partIds }, tenantId },
+        include: { stocks: { where: { branchId: input.branchId } } },
+      });
+      const byId = new Map(parts.map((p) => [p.id, p]));
+
+      let subtotal = 0;
+      const itemRows: Prisma.SalesItemCreateManyInvoiceInput[] = [];
+      const movements: Prisma.StockMovementUncheckedCreateInput[] = [];
+
+      for (const it of input.items) {
+        const part = byId.get(it.partId);
+        if (!part) throw new NotFoundException(`part ${it.partId} not found`);
+        if (it.qty <= 0) throw new BadRequestException(`qty must be > 0`);
+
+        const stock = part.stocks[0];
+        const available = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
+        if (available < it.qty) {
+          throw new BadRequestException(`insufficient stock for ${part.name} (available ${available}, requested ${it.qty})`);
+        }
+
+        const tier = customer?.priceTier ?? 'retail';
+        const base = it.unitPrice ?? (tier === 'wholesale'
+          ? Number(part.wholesalePrice)
+          : Number(part.retailPrice));
+        const discount = it.discount ?? 0;
+        const lineTotal = (base - discount) * it.qty;
+        subtotal += lineTotal;
+
+        itemRows.push({
+          partId: part.id,
+          qty: it.qty,
+          unitPrice: base,
+          unitCost: Number(part.avgCost),
+          discount,
+          lineTotal,
+          warrantyUntil: part.warrantyMonths
+            ? new Date(Date.now() + part.warrantyMonths * 30 * 24 * 3600 * 1000)
+            : null,
+        });
+
+        // decrement stock at branch (we'll do it after creating the invoice for ref id)
+        movements.push({
+          tenantId, branchId: input.branchId, partId: part.id,
+          type: 'sale', qtyChange: -it.qty,
+          unitCost: Number(part.avgCost), userId: soldBy,
+        });
+      }
+
+      const globalDiscount = input.discount ?? 0;
+      const taxable = Math.max(0, subtotal - globalDiscount);
+      const tax = +(taxable * (taxRate / 100)).toFixed(3);
+      const total = +(taxable + tax).toFixed(3);
+
+      const invoiceNo = await this.nextInvoiceNo(tx, tenantId);
+      const invoice = await tx.salesInvoice.create({
+        data: {
+          tenantId, branchId: input.branchId,
+          customerId: input.customerId ?? null,
+          posSessionId: input.posSessionId ?? null,
+          invoiceNo, subtotal, discount: globalDiscount, tax, total,
+          paid: input.paymentType === 'credit' ? 0 : total,
+          paymentType: input.paymentType ?? 'cash',
+          status: 'completed',
+          soldBy,
+          items: { create: itemRows },
+        },
+        include: { items: true },
+      });
+
+      // decrement stock + write movements (link to invoice id)
+      for (let i = 0; i < input.items.length; i++) {
+        const it = input.items[i]!;
+        await tx.stock.updateMany({
+          where: { tenantId, branchId: input.branchId, partId: it.partId },
+          data: { quantity: { decrement: it.qty } },
+        });
+        await tx.stockMovement.create({
+          data: { ...movements[i]!, refTable: 'sales_invoices', refId: invoice.id },
+        });
+      }
+
+      // customer balance update for credit sales
+      if (input.paymentType === 'credit' && customer) {
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: { balance: { increment: total } },
+        });
+      }
+
+      return invoice;
+    });
+  }
+
+  private async nextInvoiceNo(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await tx.salesInvoice.count({
+      where: { tenantId, invoiceNo: { startsWith: `INV-${year}-` } },
+    });
+    return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+  }
+
+  async list(tenantId: string, branchId?: string, page = 1, perPage = 25) {
+    const [items, total] = await Promise.all([
+      this.prisma.salesInvoice.findMany({
+        where: { tenantId, ...(branchId ? { branchId } : {}) },
+        include: { customer: { select: { id: true, name: true } }, items: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * perPage, take: perPage,
+      }),
+      this.prisma.salesInvoice.count({ where: { tenantId, ...(branchId ? { branchId } : {}) } }),
+    ]);
+    return { items, total, page, perPage, pages: Math.ceil(total / perPage) };
+  }
+
+  async findOne(tenantId: string, id: string) {
+    const inv = await this.prisma.salesInvoice.findFirst({
+      where: { id, tenantId },
+      include: {
+        items: { include: { part: true } },
+        customer: true,
+        branch: true,
+        seller: { select: { id: true, fullName: true } },
+      },
+    });
+    if (!inv) throw new NotFoundException('invoice not found');
+    return inv;
+  }
+}

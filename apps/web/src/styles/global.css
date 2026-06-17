@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { -webkit-font-smoothing: antialiased; }
+
+/* Reusable card / table primitives matching the HTML mockup */
+@layer components {
+  .card { @apply bg-white border border-line rounded-card shadow-card p-5; }
+  .kpi  { @apply card; }
+  .kpi .lbl { @apply text-muted text-sm font-semibold; }
+  .kpi .val { @apply text-2xl font-extrabold mt-1.5; }
+  .pill { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold; }
+  .pill-green { @apply bg-green-100 text-green-700; }
+  .pill-amber { @apply bg-amber-100 text-amber-700; }
+  .pill-red   { @apply bg-red-100   text-red-700;   }
+  .pill-blue  { @apply bg-blue-100  text-blue-700;  }
+  .pill-gray  { @apply bg-slate-100 text-muted;     }
+  .btn        { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] text-sm font-bold transition; }
+  .btn-primary{ @apply btn bg-accent text-white hover:bg-accent-dark; }
+  .btn-ghost  { @apply btn bg-transparent text-primary border border-primary hover:bg-primary hover:text-white; }
+  .input      { @apply w-full px-3 py-2.5 rounded-[10px] border border-line bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary; }
+  .row-divide { @apply flex items-center justify-between py-3 border-b border-line last:border-0; }
+}
