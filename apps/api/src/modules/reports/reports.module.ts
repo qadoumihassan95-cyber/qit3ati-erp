@@ -1,7 +1,6 @@
 import { Module, Controller, Get, Query, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
-import { Prisma } from '@prisma/client';
 
 /** Parse a YYYY-MM-DD date string. Returns Date or undefined. */
 function parseDate(s?: string): Date | undefined {
@@ -23,11 +22,11 @@ class ReportsService {
    * Net       = Revenue - COGS - Expenses - Returns
    */
   async profitAndLoss(tenantId: string, from?: Date, to?: Date) {
-    const dateFilter: Prisma.DateTimeFilter = {};
+    const dateFilter: { gte?: Date; lte?: Date } = {};
     if (from) dateFilter.gte = from;
     if (to)   dateFilter.lte = to;
-    const invoiceWhere: Prisma.SalesInvoiceWhereInput = {
-      tenantId, status: 'completed',
+    const invoiceWhere = {
+      tenantId, status: 'completed' as const,
       ...(from || to ? { invoiceDate: dateFilter } : {}),
     };
     const [salesAgg, items, expAgg, retAgg, purAgg] = await Promise.all([
@@ -117,8 +116,11 @@ class ReportsService {
       };
     }));
 
-    const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-    for (const r of result) buckets[r.bucket as '0-30'|'31-60'|'61-90'|'90+'] += r.balance;
+    const buckets: Record<'0-30' | '31-60' | '61-90' | '90+', number> = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
+    for (const r of result) {
+      const bk = r.bucket as '0-30'|'31-60'|'61-90'|'90+';
+      buckets[bk] = (buckets[bk] ?? 0) + r.balance;
+    }
 
     return {
       customers: result.sort((a, b) => b.balance - a.balance),
@@ -147,11 +149,11 @@ class ReportsService {
    * Returns top sold parts in the period + slow movers (sold ≤ 1).
    */
   async stockTurnover(tenantId: string, from?: Date, to?: Date) {
-    const dateFilter: Prisma.DateTimeFilter = {};
+    const dateFilter: { gte?: Date; lte?: Date } = {};
     if (from) dateFilter.gte = from;
     if (to)   dateFilter.lte = to;
-    const where: Prisma.StockMovementWhereInput = {
-      tenantId, type: 'sale',
+    const where = {
+      tenantId, type: 'sale' as const,
       ...(from || to ? { createdAt: dateFilter } : {}),
     };
 
@@ -223,7 +225,7 @@ class ReportsService {
    * Profit-by-part report. Reads sales_items and computes margin per part.
    */
   async profitByPart(tenantId: string, from?: Date, to?: Date) {
-    const dateFilter: Prisma.DateTimeFilter = {};
+    const dateFilter: { gte?: Date; lte?: Date } = {};
     if (from) dateFilter.gte = from;
     if (to)   dateFilter.lte = to;
     const items = await this.prisma.salesItem.findMany({
@@ -282,7 +284,7 @@ class ReportsService {
     }
     for (const s of sales) {
       const k = s.invoiceDate.toISOString().slice(0, 10);
-      if (k in buckets) buckets[k]! += Number(s.total ?? 0);
+      if (k in buckets) buckets[k] = (buckets[k] ?? 0) + Number(s.total ?? 0);
     }
     return Object.entries(buckets).map(([date, total]) => ({ date, total: +total.toFixed(3) }));
   }

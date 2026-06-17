@@ -38,13 +38,14 @@ const SKIP_PATTERNS = [
  */
 function parseUrl(url: string): { entity: string; entityIdInUrl?: string } {
   // strip /api/v1 prefix and query string
-  const path = url.replace(/^\/api\/v\d+\//, '').split('?')[0] ?? '';
-  const segments = path.split('/').filter(Boolean);
+  const beforeQuery = url.replace(/^\/api\/v\d+\//, '').split('?')[0] ?? '';
+  const segments = beforeQuery.split('/').filter(Boolean);
   if (segments.length === 0) return { entity: 'unknown' };
-  const entity = segments[0]!;
+  const entity = segments[0] ?? 'unknown';
   // UUID pattern → id
   const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const entityIdInUrl = segments[1] && uuidRe.test(segments[1]) ? segments[1] : undefined;
+  const second = segments[1];
+  const entityIdInUrl = second && uuidRe.test(second) ? second : undefined;
   return { entity, entityIdInUrl };
 }
 

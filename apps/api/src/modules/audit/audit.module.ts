@@ -14,10 +14,10 @@ class AuditService {
       take: Math.min(Math.max(limit, 10), 500),
     });
     // Convert BigInt id to string for JSON safety
-    return items.map((i) => ({
-      ...i,
-      id: i.id.toString(),
-    }));
+    return items.map((i) => {
+      const { id, ...rest } = i;
+      return { id: id.toString(), ...rest };
+    });
   }
 }
 

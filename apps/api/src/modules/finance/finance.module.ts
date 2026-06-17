@@ -1,9 +1,8 @@
-import { Module, Controller, Get, Post, Param, Body, Query, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Module, Controller, Get, Post, Body, Query, Injectable, NotFoundException } from '@nestjs/common';
 import { IsEnum, IsISO8601, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
-import { Prisma } from '@prisma/client';
 
 // ============================ DTOs ============================
 
