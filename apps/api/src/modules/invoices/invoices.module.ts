@@ -8,7 +8,8 @@ const escape = (s: string | null | undefined) =>
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-const fmt = (n: number | string | null | undefined, cur = 'د.أ') => {
+/** Accepts number, string, Prisma Decimal — anything that Number() can coerce. */
+const fmt = (n: unknown, cur = 'د.أ') => {
   const v = Number(n ?? 0);
   return new Intl.NumberFormat('ar-JO', { maximumFractionDigits: 2 }).format(v) + ' ' + cur;
 };
