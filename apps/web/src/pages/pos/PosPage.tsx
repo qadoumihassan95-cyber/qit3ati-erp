@@ -1,16 +1,40 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, CreditCard, Search, X } from 'lucide-react';
+import { Banknote, CreditCard, Search, X, PackageX } from 'lucide-react';
 
 interface Part {
   id: string; sku: string; name: string;
   partNumber: string | null; oemNumber: string | null;
+  barcode?: string | null;
+  manufacturer?: string | null;
   retailPrice: number; quantity: number; taxRate: number;
 }
 
 interface CartItem { partId: string; name: string; unitPrice: number; qty: number; }
+
+/**
+ * Debounce a value — useful for search boxes so we don't fire a request on
+ * every keystroke. 150ms is fast enough to feel instant but slow enough that
+ * a quick "Bosch" type doesn't fire 5 requests.
+ */
+function useDebounced<T>(value: T, delay = 150): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return v;
+}
+
+/**
+ * Strip control chars (including the null byte that crashed Prisma earlier),
+ * normalise repeated whitespace, and trim. Send the cleaned text to backend.
+ */
+function sanitize(s: string): string {
+  return s.replace(/[\x00-\x1F\x7F]/g, '').replace(/\s+/g, ' ').trim();
+}
 
 export default function PosPage() {
   const branchId = useAuth((s) => s.branchId);
@@ -18,23 +42,55 @@ export default function PosPage() {
   const qc = useQueryClient();
 
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounced(sanitize(q), 150);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const { data, isLoading } = useQuery<{ items: Part[] }>({
-    queryKey: ['pos-parts', q, branchId],
-    queryFn: async () => (await api.get('/parts', { params: { q, branchId, perPage: 24 } })).data,
+  const { data, isLoading, isFetching } = useQuery<{ items: Part[]; total: number }>({
+    queryKey: ['pos-parts', debouncedQ, branchId],
+    queryFn: async () => (await api.get('/parts', {
+      params: { q: debouncedQ, branchId, perPage: 60 },
+    })).data,
+    // keep showing the previous results while the new ones load (no flicker)
+    placeholderData: keepPreviousData,
   });
+  const items = data?.items ?? [];
 
   const sub = useMemo(() => cart.reduce((s, c) => s + c.unitPrice * c.qty, 0), [cart]);
   const tax = +(sub * (taxRate / 100)).toFixed(3);
   const tot = +(sub + tax).toFixed(3);
 
-  const add = (p: Part) =>
+  const add = (p: Part) => {
+    if (p.quantity <= 0) return;
     setCart((c) => {
       const ex = c.find((i) => i.partId === p.id);
       if (ex) return c.map((i) => i.partId === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...c, { partId: p.id, name: p.name, unitPrice: Number(p.retailPrice), qty: 1 }];
     });
+    // Pop the search back to empty so the cashier can scan the next item.
+    // Don't blur — keep focus on the input for instant next-scan.
+    setQ('');
+    inputRef.current?.focus();
+  };
+
+  // Barcode-scanner workflow: most scanners send the code then a newline.
+  // If Enter is pressed and there's exactly one match (or any match starts
+  // with what's been typed exactly), add it to the cart immediately.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (items.length === 0) return;
+    // Prefer an exact barcode/SKU/partNumber/OEM match if present.
+    const term = debouncedQ.toLowerCase();
+    const exact = items.find((p) =>
+      [p.barcode, p.sku, p.partNumber, p.oemNumber]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase())
+        .includes(term),
+    );
+    const target = exact ?? items[0];
+    if (target) add(target);
+  };
 
   const updateQty = (id: string, qty: number) =>
     setCart((c) => qty <= 0 ? c.filter((i) => i.partId !== id) : c.map((i) => i.partId === id ? { ...i, qty } : i));
@@ -51,9 +107,6 @@ export default function PosPage() {
       setCart([]);
       qc.invalidateQueries({ queryKey: ['pos-parts'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
-      // Open printable invoice in a new tab — uses JWT via cookie? No, JWT is in auth header.
-      // Solution: open backend URL with token query param (already requires JWT via Bearer);
-      // pragmatic alternative: ask if user wants to print, then fetch with auth + open blob.
       if (window.confirm(`✅ تم إصدار الفاتورة ${invoice.invoiceNo}\n\nهل تريد طباعتها الآن؟`)) {
         printInvoice(invoice.id).catch((e) => alert('فشل تحميل الفاتورة: ' + e.message));
       }
@@ -62,39 +115,121 @@ export default function PosPage() {
   });
 
   async function printInvoice(id: string) {
-    // Fetch HTML with our JWT, then open in a new window for printing.
     const res = await api.get(`/invoices/${id}/print`, { responseType: 'text' });
     const html = res.data as string;
-    const w = window.open('', '_blank');
-    if (!w) { alert('السماح بالنوافذ المنبثقة مطلوب للطباعة'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
+    // Open in new tab via Blob URL — Chrome doesn't block tab-opens, only popups.
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) {
+      URL.revokeObjectURL(url);
+      alert('السماح بفتح علامات تبويب جديدة مطلوب للطباعة');
+      return;
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 
   return (
     <div>
       <h1 className="text-2xl font-extrabold mb-1">نقطة البيع (POS)</h1>
-      <p className="text-muted text-sm mb-6">بيع سريع بالباركود — اضغط القطعة لإضافتها للسلة</p>
+      <p className="text-muted text-sm mb-6">
+        امسح الباركود أو اكتب رقم القطعة / OEM / الاسم — Enter يضيف أوّل نتيجة للسلة
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4">
         <div>
           <div className="relative mb-3">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input className="input pr-10" placeholder="امسح الباركود أو ابحث عن قطعة..."
-                   value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" size={18} />
+            <input
+              ref={inputRef}
+              className="input pr-10 pl-10"
+              placeholder="امسح الباركود أو ابحث (اسم، SKU، رقم القطعة، OEM، الباركود)..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={onKeyDown}
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="search"
+              dir="auto"
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => { setQ(''); inputRef.current?.focus(); }}
+                aria-label="مسح البحث"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-bg text-muted hover:text-ink"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {isLoading && <p className="col-span-3 text-center text-muted py-10">جاري التحميل…</p>}
-            {!isLoading && (data?.items ?? []).map((p) => (
-              <button key={p.id} onClick={() => add(p)} disabled={p.quantity <= 0}
-                      className="card text-right hover:border-accent hover:-translate-y-0.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <div className="text-xs text-muted">{p.partNumber ?? p.sku}</div>
-                <div className="font-bold text-sm my-1">{p.name}</div>
-                <div className="text-primary font-extrabold">{Number(p.retailPrice).toFixed(2)} د.أ</div>
-                <div className="text-xs text-muted mt-1">المتوفر: {p.quantity}</div>
-              </button>
-            ))}
+          {/* Result counter — small but useful proof the search worked */}
+          <div className="text-xs text-muted mb-2 flex items-center justify-between">
+            <span>
+              {isLoading
+                ? 'جاري التحميل...'
+                : debouncedQ
+                  ? `${items.length} نتيجة للبحث: "${debouncedQ}"`
+                  : `يعرض ${items.length} صنف`}
+              {isFetching && !isLoading && ' • يحدّث...'}
+            </span>
           </div>
+
+          {/* Skeleton on first load only — afterwards we keep the previous results */}
+          {isLoading && items.length === 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="card animate-pulse h-28 bg-slate-100" />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state — show ONLY when load finished and no items */}
+          {!isLoading && items.length === 0 && (
+            <div className="card text-center py-12 text-muted">
+              <PackageX className="mx-auto mb-3 text-slate-400" size={40} />
+              <div className="font-bold text-base mb-1">لا توجد نتائج مطابقة</div>
+              <div className="text-xs">
+                {debouncedQ
+                  ? `لا يوجد صنف بـ"${debouncedQ}" — جرّب بحثاً آخر`
+                  : 'لا توجد أصناف معروضة — أضف صنفاً جديداً من صفحة الأصناف'}
+              </div>
+            </div>
+          )}
+
+          {/* Results grid */}
+          {items.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {items.map((p) => {
+                const isOut = p.quantity <= 0;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => add(p)}
+                    disabled={isOut}
+                    type="button"
+                    className={
+                      'card text-right transition relative ' +
+                      (isOut
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:border-accent hover:-translate-y-0.5 active:translate-y-0')
+                    }
+                  >
+                    <div className="text-xs text-muted">{p.partNumber ?? p.sku}</div>
+                    <div className="font-bold text-sm my-1 line-clamp-2">{p.name}</div>
+                    <div className="text-primary font-extrabold">{Number(p.retailPrice).toFixed(2)} د.أ</div>
+                    <div className={'text-xs mt-1 ' + (isOut ? 'text-red-600 font-bold' : 'text-muted')}>
+                      {isOut ? 'نفدت' : `المتوفر: ${p.quantity}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Cart */}
@@ -111,7 +246,7 @@ export default function PosPage() {
                     <button onClick={() => updateQty(c.partId, c.qty - 1)} className="w-6 h-6 rounded bg-bg hover:bg-line">−</button>
                     <span className="font-bold w-6 text-center">{c.qty}</span>
                     <button onClick={() => updateQty(c.partId, c.qty + 1)} className="w-6 h-6 rounded bg-bg hover:bg-line">+</button>
-                    <button onClick={() => updateQty(c.partId, 0)} className="text-red-500 ms-1"><X size={14} /></button>
+                    <button onClick={() => updateQty(c.partId, 0)} className="text-red-500 ms-1" aria-label="إزالة"><X size={14} /></button>
                   </div>
                   <span className="font-bold w-16 text-left">{(c.unitPrice * c.qty).toFixed(2)}</span>
                 </div>
