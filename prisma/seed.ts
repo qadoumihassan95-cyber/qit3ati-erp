@@ -59,6 +59,10 @@ const PERMISSIONS: Array<{ code: string; module: string; labelAr: string }> = [
   { code: 'cheques.view',     module: 'finance', labelAr: 'عرض الشيكات' },
   { code: 'cheques.manage',   module: 'finance', labelAr: 'إدارة الشيكات' },
   { code: 'cheques.collect',  module: 'finance', labelAr: 'تحصيل/دفع الشيكات' },
+  // JoFotara — Jordan national e-invoicing
+  { code: 'jofotara.view',    module: 'finance', labelAr: 'عرض الفوترة الإلكترونية JoFotara' },
+  { code: 'jofotara.send',    module: 'finance', labelAr: 'إرسال الفواتير إلى JoFotara' },
+  { code: 'jofotara.config',  module: 'admin',   labelAr: 'إعدادات الربط مع JoFotara' },
 ];
 
 // Permission bundles per role
@@ -72,7 +76,8 @@ const ROLE_PERMS: Record<string, string[]> = {
     'documents.view','cheques.view',
   ],
   accountant: ['accounting.view','accounting.entry','sales.view','purchase.view','stock.view','cost.view',
-               'documents.view','documents.manage','cheques.view','cheques.manage','cheques.collect'],
+               'documents.view','documents.manage','cheques.view','cheques.manage','cheques.collect',
+               'jofotara.view','jofotara.send'],
   warehouse:  ['stock.view','stock.adjust','transfer.create','parts.view'],
   cashier:    ['sales.view','sales.create','parts.view','stock.view'],
   viewer:     ['sales.view','parts.view','stock.view','accounting.view','documents.view','cheques.view'],

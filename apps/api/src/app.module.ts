@@ -27,6 +27,7 @@ import { InvoicesModule }  from './modules/invoices/invoices.module';
 import { AuditModule }     from './modules/audit/audit.module';
 import { PapersModule }    from './modules/papers/papers.module';
 import { ChequesModule }   from './modules/cheques/cheques.module';
+import { JofotaraModule }  from './modules/jofotara/jofotara.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ChequesModule }   from './modules/cheques/cheques.module';
     AuditModule,
     PapersModule,
     ChequesModule,
+    JofotaraModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

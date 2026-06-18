@@ -136,6 +136,30 @@ enum ChequeStatus {
   cancelled         // ملغي
 }
 
+/// JoFotara submission status — tracks each sales invoice's e-invoicing state.
+enum JofotaraStatus {
+  not_sent         // لم ترسل
+  queued           // بانتظار الإرسال
+  sent             // تم الإرسال (waiting for server response)
+  accepted         // مقبولة من JoFotara
+  rejected         // مرفوضة
+  failed           // فشل الاتصال (يمكن إعادة الإرسال)
+  needs_resubmit   // تحتاج إعادة إرسال (manual flag)
+}
+
+/// JoFotara environment — sandbox for testing, production for real submissions.
+enum JofotaraEnvironment {
+  sandbox
+  production
+}
+
+/// Type of UBL document we're submitting.
+enum JofotaraDocumentType {
+  invoice          // فاتورة بيع عادية
+  credit_note      // إشعار دائن (مرتجع/تخفيض)
+  debit_note       // إشعار مدين (زيادة)
+}
+
 enum NotificationType {
   low_stock
   doc_expiry
@@ -221,6 +245,8 @@ model Tenant {
   stockCounts      StockCount[]
   officialPapers   OfficialPaper[]
   cheques          Cheque[]
+  jofotaraConfig   JofotaraConfig?
+  jofotaraSubmissions JofotaraSubmission[]
 
   @@map("tenants")
 }
@@ -383,6 +409,7 @@ model User {
   officialPaperLogs     OfficialPaperLog[]
   chequesCreated        Cheque[]             @relation("ChequeCreatedBy")
   chequeStatusLogs      ChequeStatusLog[]
+  jofotaraSubmissions   JofotaraSubmission[]
   employee          Employee?
 
   @@unique([tenantId, email])
@@ -834,8 +861,13 @@ model SalesInvoice {
   paid          Decimal      @default(0) @db.Decimal(14, 3)
   paymentType   PaymentType  @default(cash) @map("payment_type")
   status        SaleStatus   @default(completed)
-  jofotaraUuid  String?      @map("jofotara_uuid") @db.VarChar(60)
-  jofotaraQr    String?      @map("jofotara_qr")
+  // ---- JoFotara fields ----
+  jofotaraStatus      JofotaraStatus @default(not_sent) @map("jofotara_status")
+  jofotaraUuid        String?        @map("jofotara_uuid") @db.VarChar(80)
+  jofotaraQr          String?        @map("jofotara_qr")
+  jofotaraError       String?        @map("jofotara_error")
+  jofotaraSubmittedAt DateTime?      @map("jofotara_submitted_at") @db.Timestamptz
+  jofotaraXml         String?        @map("jofotara_xml")  // last sent UBL XML (for debug/replay)
   soldBy        String?      @map("sold_by") @db.Uuid
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
   deletedAt     DateTime?    @map("deleted_at") @db.Timestamptz
@@ -847,8 +879,10 @@ model SalesInvoice {
   seller     User?        @relation("SoldBy", fields: [soldBy], references: [id])
   items      SalesItem[]
   returns    SalesReturn[]
+  jofotaraSubmissions JofotaraSubmission[]
 
   @@index([tenantId, branchId, invoiceDate])
+  @@index([tenantId, jofotaraStatus])
   @@map("sales_invoices")
 }
 
@@ -1422,6 +1456,75 @@ model ChequeStatusLog {
 
   @@index([chequeId, createdAt])
   @@map("cheque_status_logs")
+}
+
+/// ---------------------------------------------------------------------------
+/// JOFOTARA — Jordan's national e-invoicing system (ISTD)
+/// One config row per tenant. Secret key is stored ENCRYPTED at rest using
+/// AES-256-GCM with a master key from env `JOFOTARA_MASTER_KEY` (set on Render).
+/// The plain secret never leaves the server — APIs return masked strings only.
+/// ---------------------------------------------------------------------------
+model JofotaraConfig {
+  tenantId            String              @id @map("tenant_id") @db.Uuid
+  /// API client identifier issued by JoFotara onboarding.
+  clientId            String?             @map("client_id") @db.VarChar(120)
+  /// ENCRYPTED secret — never expose via API responses except a 4-char preview.
+  /// Format: `<iv-hex>:<authTag-hex>:<ciphertext-hex>`.
+  secretEncrypted     String?             @map("secret_encrypted")
+  /// Last 4 chars of the plain secret — safe to show in UI (e.g. "••••AB3F").
+  secretMaskTail      String?             @map("secret_mask_tail") @db.VarChar(8)
+  /// "Activity number" / income source sequence — issued by ISTD.
+  activityNumber      String?             @map("activity_number") @db.VarChar(40)
+  /// Taxpayer registration number (TIN).
+  taxpayerNumber      String?             @map("taxpayer_number") @db.VarChar(40)
+  /// Display name on invoices submitted to JoFotara (Arabic).
+  companyName         String?             @map("company_name") @db.VarChar(200)
+  /// Sandbox by default — never auto-toggle to production.
+  environment         JofotaraEnvironment @default(sandbox)
+  /// Override the base URL (allows pointing at a regional endpoint or proxy).
+  /// Empty = use the default for the chosen environment.
+  baseUrlOverride     String?             @map("base_url_override")
+  /// Auto-submit every cash sale on creation. Credit sales are always queued.
+  autoSendOnSale      Boolean             @default(false) @map("auto_send_on_sale")
+  /// HTTP timeout per submission (ms).
+  timeoutMs           Int                 @default(15_000) @map("timeout_ms")
+  /// Was at least one successful test connection performed?
+  connectionVerifiedAt DateTime?          @map("connection_verified_at") @db.Timestamptz
+  updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("jofotara_configs")
+}
+
+/// Each call to JoFotara is logged here for compliance + debugging.
+/// Auto-pruned by a future cron to keep this table reasonable in size.
+model JofotaraSubmission {
+  id              BigInt              @id @default(autoincrement())
+  tenantId        String              @map("tenant_id") @db.Uuid
+  invoiceId       String?             @map("invoice_id") @db.Uuid
+  documentType    JofotaraDocumentType @default(invoice) @map("document_type")
+  /// Status of the SUBMISSION (not the invoice). An invoice can have many
+  /// submissions (e.g. retry after failure).
+  status          JofotaraStatus      @default(queued)
+  requestXml      String?             @map("request_xml")
+  responsePayload String?             @map("response_payload")
+  httpStatus      Int?                @map("http_status")
+  errorMessage    String?             @map("error_message")
+  /// Server-side execution time in ms.
+  durationMs      Int?                @map("duration_ms")
+  /// User who triggered the submission (null = system/auto).
+  userId          String?             @map("user_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  invoice SalesInvoice? @relation(fields: [invoiceId], references: [id])
+  user    User?         @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@index([invoiceId])
+  @@map("jofotara_submissions")
 }
 
 model TelegramLink {

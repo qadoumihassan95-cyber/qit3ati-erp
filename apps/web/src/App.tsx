@@ -19,6 +19,7 @@ import AuditPage from '@/pages/audit/AuditPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
 import PapersPage from '@/pages/papers/PapersPage';
 import ChequesPage from '@/pages/cheques/ChequesPage';
+import JofotaraPage from '@/pages/jofotara/JofotaraPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="audit"        element={<AuditPage />} />
         <Route path="papers"       element={<PapersPage />} />
         <Route path="cheques"      element={<ChequesPage />} />
+        <Route path="jofotara"     element={<JofotaraPage />} />
         <Route path="settings"     element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
