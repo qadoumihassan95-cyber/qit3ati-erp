@@ -408,14 +408,23 @@ export function buildPrintHtml(input: PrintDocumentInput): string {
  */
 export function printDocument(html: string, mode: 'print' | 'preview' = 'print') {
   if (mode === 'preview') {
-    const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100');
+    // Open in a new TAB (not a popup window).
+    //   - `window.open('', '_blank')` without width/height = browser opens a tab
+    //   - any size hint makes Chrome treat it as a popup and block it by default
+    // We also write via Blob URL: faster, avoids the "about:blank" flash, and
+    // sidesteps Chrome's same-origin restrictions on document.write() on cross-
+    // origin blank tabs.
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, '_blank');
     if (!win) {
-      alert('فشل فتح نافذة المعاينة — تأكّد من السماح بالنوافذ المنبثقة');
+      // very rare — only if user explicitly blocked even tab-opens
+      URL.revokeObjectURL(url);
+      alert('فشل فتح المعاينة — يرجى السماح للموقع بفتح علامات تبويب جديدة');
       return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+    // free the blob once the new tab has had a chance to load it
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
     return;
   }
 
