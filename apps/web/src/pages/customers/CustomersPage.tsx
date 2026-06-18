@@ -44,7 +44,7 @@ export default function CustomersPage() {
         subtitle="إدارة قاعدة بيانات العملاء، أسعارهم، وسقوف ائتمانهم"
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
-            <PrintBar<Customer>
+            <PrintBar
               title="العملاء"
               subtitle={q ? `بحث: "${q}"` : undefined}
               columns={[

@@ -243,7 +243,7 @@ export default function ChequesPage() {
       format: (_, r) => r.customer?.name ?? r.supplier?.name ?? r.partyName ?? '—' },
     { key: 'amount',    label: 'المبلغ',       number: true, format: (v) => fmtMoney(v) },
     { key: 'dueDate',   label: 'الاستحقاق',    format: (v) => fmtDate(v) },
-    { key: 'liveStatus', label: 'الحالة',      format: (v: Status) => STATUS_LABEL[v] },
+    { key: 'liveStatus', label: 'الحالة',      format: (v) => STATUS_LABEL[v as Status] ?? String(v ?? '') },
     { key: 'daysLeft',  label: 'المتبقّي (يوم)', number: true,
       format: (v) => Number(v) >= 0 ? String(v) : `متأخّر ${Math.abs(Number(v))}` },
     { key: 'notes',     label: 'ملاحظات',     format: (v) => v ?? '—', hideInPrint: true },

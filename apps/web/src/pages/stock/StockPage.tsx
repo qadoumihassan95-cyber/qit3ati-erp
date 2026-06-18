@@ -29,7 +29,7 @@ export default function StockPage() {
     <div>
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
         <h1 className="text-2xl font-extrabold">المخزون والفروع</h1>
-        <PrintBar<Row>
+        <PrintBar
           title="المخزون والفروع"
           columns={[
             { key: 'name',       label: 'القطعة',       width: '25%' },

@@ -39,7 +39,7 @@ export default function ExpensesPage() {
         subtitle="تتبّع كل ما يخرج من الصندوق — إيجار، كهرباء، نقل، رواتب..."
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
-            <PrintBar<Expense>
+            <PrintBar
               title="المصاريف"
               columns={[
                 { key: 'expenseDate', label: 'التاريخ',  format: (v) => fmtDate(v) },

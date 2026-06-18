@@ -207,7 +207,7 @@ export default function PapersPage() {
     { key: 'expiresAt',  label: 'تاريخ الانتهاء', format: (v) => fmtDate(v) },
     { key: 'daysLeft',   label: 'المتبقّي (يوم)',  number: true,
       format: (v) => v === null ? '—' : Number(v) < 0 ? `متأخّر ${Math.abs(Number(v))}` : String(v) },
-    { key: 'liveStatus', label: 'الحالة',         format: (v: PaperStatus) => STATUS_LABEL[v] ?? v },
+    { key: 'liveStatus', label: 'الحالة',         format: (v) => STATUS_LABEL[v as PaperStatus] ?? String(v ?? '') },
   ];
 
   return (

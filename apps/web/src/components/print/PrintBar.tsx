@@ -31,7 +31,8 @@ interface Props<T> {
  *
  * Reads tenant branding from useAuth() automatically.
  */
-export default function PrintBar<T>({
+// `<T,>` (trailing comma) tells the .tsx parser this is a generic, not a JSX tag.
+export default function PrintBar<T,>({
   title,
   subtitle,
   columns,

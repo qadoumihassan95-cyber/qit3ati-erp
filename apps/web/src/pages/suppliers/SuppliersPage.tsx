@@ -35,7 +35,7 @@ export default function SuppliersPage() {
         subtitle="إدارة الموردين ومتابعة ما لهم علينا"
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
-            <PrintBar<Supplier>
+            <PrintBar
               title="الموردون"
               subtitle={q ? `بحث: "${q}"` : undefined}
               columns={[
