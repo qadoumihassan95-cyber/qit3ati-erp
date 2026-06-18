@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
@@ -16,8 +16,10 @@ const NAV: NavItem[] = [
   { to: '/customers', label: 'العملاء',         icon: Users,           section: 'العلاقات' },
   { to: '/suppliers', label: 'الموردون',        icon: Building2 },
   { to: '/expenses',  label: 'المصاريف',        icon: Receipt,         section: 'المال' },
+  { to: '/cheques',   label: 'الشيكات',          icon: Banknote },
   { to: '/reports',   label: 'التقارير',        icon: FileBarChart },
   { to: '/branches',  label: 'الفروع',          icon: Building,        section: 'الإدارة' },
+  { to: '/papers',    label: 'الأوراق الرسمية',  icon: FileCheck },
   { to: '/audit',     label: 'سجل التدقيق',     icon: Shield },
   { to: '/settings',  label: 'الإعدادات والهوية', icon: SettingsIcon },
 ];

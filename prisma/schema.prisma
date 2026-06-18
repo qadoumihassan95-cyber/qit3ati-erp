@@ -99,6 +99,43 @@ enum DocumentType {
   transfer
 }
 
+/// Types for the dedicated "OfficialPaper" feature (shop licenses, taxes, etc.)
+enum OfficialPaperType {
+  shop_license      // رخصة محل
+  commercial_reg    // سجل تجاري
+  profession_license // رخصة مهن
+  tax               // ضريبة
+  insurance         // تأمين
+  lease             // عقد إيجار
+  customs           // جمارك
+  authorization     // تفويض
+  other             // أخرى
+}
+
+/// Auto-computed by service from expiresAt + manual overrides like "in-progress".
+enum OfficialPaperStatus {
+  active            // سارية
+  expiring_soon     // قاربت على الانتهاء (<=30 day)
+  expired           // منتهية
+  renewal_needed    // تحتاج تجديد (manual flag)
+  in_progress       // قيد المعاملة (manual flag)
+}
+
+enum ChequeDirection {
+  incoming          // شيك لنا (مستحق من عميل)
+  outgoing          // شيك علينا (مستحق لمورد أو مصروف)
+}
+
+enum ChequeStatus {
+  new               // جديد
+  due_soon          // مستحق قريباً (<=7 days)
+  due_today         // مستحق اليوم
+  collected         // محصل (incoming → موصول إلى Receipt)
+  paid              // مدفوع (outgoing → موصول إلى Payment)
+  bounced           // مرتجع
+  cancelled         // ملغي
+}
+
 enum NotificationType {
   low_stock
   doc_expiry
@@ -182,6 +219,8 @@ model Tenant {
   partImages       PartImage[]
   stockMovements   StockMovement[]
   stockCounts      StockCount[]
+  officialPapers   OfficialPaper[]
+  cheques          Cheque[]
 
   @@map("tenants")
 }
@@ -242,6 +281,8 @@ model Branch {
   transfersTo      Transfer[] @relation("TransferToBranch")
   stockMovements   StockMovement[]
   stockCounts      StockCount[]
+  officialPapers   OfficialPaper[]
+  cheques          Cheque[]
 
   @@index([tenantId])
   @@map("branches")
@@ -338,6 +379,10 @@ model User {
   journalEntries    JournalEntry[]
   transfersCreated  Transfer[] @relation("TransferCreatedBy")
   transfersReceived Transfer[] @relation("TransferReceivedBy")
+  officialPapersCreated OfficialPaper[]      @relation("OfficialPaperCreatedBy")
+  officialPaperLogs     OfficialPaperLog[]
+  chequesCreated        Cheque[]             @relation("ChequeCreatedBy")
+  chequeStatusLogs      ChequeStatusLog[]
   employee          Employee?
 
   @@unique([tenantId, email])
@@ -655,6 +700,7 @@ model Supplier {
   purchaseInvoices  PurchaseInvoice[]
   payments          Payment[]
   purchaseReturns   PurchaseReturn[]
+  cheques           Cheque[]
 
   @@index([tenantId])
   @@map("suppliers")
@@ -680,6 +726,7 @@ model Customer {
   quotations         Quotation[]
   specialPrices      CustomerSpecialPrice[]
   warranties         Warranty[]
+  cheques            Cheque[]
 
   @@index([tenantId])
   @@map("customers")
@@ -911,7 +958,8 @@ model Bank {
   accountNo String? @map("account_no") @db.VarChar(60)
   balance   Decimal @default(0) @db.Decimal(14, 3)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  cheques Cheque[]
 
   @@map("banks")
 }
@@ -933,6 +981,7 @@ model Receipt {
   branch   Branch?   @relation(fields: [branchId], references: [id])
   customer Customer? @relation(fields: [customerId], references: [id])
   creator  User?     @relation("ReceiptCreatedBy", fields: [createdBy], references: [id])
+  cheque   Cheque?
 
   @@map("receipts")
 }
@@ -952,6 +1001,7 @@ model Payment {
   branch   Branch?   @relation(fields: [branchId], references: [id])
   supplier Supplier? @relation(fields: [supplierId], references: [id])
   creator  User?     @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
+  cheque   Cheque?
 
   @@map("payments")
 }
@@ -1242,6 +1292,136 @@ model TenantCounter {
 
   @@id([tenantId, counterKey])
   @@map("tenant_counters")
+}
+
+/// ---------------------------------------------------------------------------
+/// OFFICIAL PAPERS — shop licenses, taxes, leases, customs, etc.
+/// Dedicated feature distinct from the generic Document table — fixed types,
+/// issuer, branch ownership, computed status, change log, alert flags.
+/// ---------------------------------------------------------------------------
+model OfficialPaper {
+  id               String              @id @default(uuid()) @db.Uuid
+  tenantId         String              @map("tenant_id") @db.Uuid
+  branchId         String?             @map("branch_id") @db.Uuid
+  type             OfficialPaperType
+  title            String              @db.VarChar(200)   // اسم/عنوان
+  docNumber        String?             @map("doc_number") @db.VarChar(100)
+  issuer           String?             @db.VarChar(200)   // الجهة المصدرة
+  issuedAt         DateTime?           @map("issued_at") @db.Date
+  expiresAt        DateTime?           @map("expires_at") @db.Date
+  /// Optional manual override; otherwise the service computes from expiresAt.
+  /// Use this for `renewal_needed` and `in_progress` which can't be derived.
+  statusOverride   OfficialPaperStatus? @map("status_override")
+  notes            String?
+  fileUrl          String?             @map("file_url")
+  /// last time we sent any alert to the owner (debounce: same paper, same day).
+  lastAlertAt      DateTime?           @map("last_alert_at") @db.Timestamptz
+  /// which alert thresholds already fired (CSV: "30,15,7" so we don't re-send)
+  alertedDays      String?             @map("alerted_days") @db.VarChar(40)
+  createdBy        String?             @map("created_by") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime?           @map("deleted_at") @db.Timestamptz
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  branch  Branch? @relation(fields: [branchId], references: [id])
+  creator User?   @relation("OfficialPaperCreatedBy", fields: [createdBy], references: [id])
+  logs    OfficialPaperLog[]
+
+  @@index([tenantId, expiresAt])
+  @@index([tenantId, type])
+  @@index([tenantId, branchId])
+  @@map("official_papers")
+}
+
+/// Append-only change log for an OfficialPaper (audit trail).
+model OfficialPaperLog {
+  id        BigInt   @id @default(autoincrement())
+  paperId   String   @map("paper_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String   @db.VarChar(40) // created | updated | renewed | status_changed | file_replaced
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  paper OfficialPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  user  User?         @relation(fields: [userId], references: [id])
+
+  @@index([paperId, createdAt])
+  @@map("official_paper_logs")
+}
+
+/// ---------------------------------------------------------------------------
+/// CHEQUES — incoming (from customers, owed TO us) and outgoing (TO suppliers).
+/// Lifecycle:
+///   new → due_soon (auto, within 7d) → due_today (auto)
+///        → collected (incoming, creates a Receipt)
+///        OR paid (outgoing, creates a Payment)
+///        OR bounced / cancelled
+/// ---------------------------------------------------------------------------
+model Cheque {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  branchId         String?         @map("branch_id") @db.Uuid
+  direction        ChequeDirection
+  chequeNo         String          @map("cheque_no") @db.VarChar(60)
+  bankId           String?         @map("bank_id") @db.Uuid
+  bankName         String?         @map("bank_name") @db.VarChar(150) // free text fallback
+  /// Owner of the cheque (the drawer for incoming, the beneficiary for outgoing).
+  /// Free text because not every payer/payee is in the customer/supplier list.
+  partyName        String?         @map("party_name") @db.VarChar(200)
+  customerId       String?         @map("customer_id") @db.Uuid
+  supplierId       String?         @map("supplier_id") @db.Uuid
+  amount           Decimal         @db.Decimal(14, 3)
+  dueDate          DateTime        @map("due_date") @db.Date
+  /// Manual override; service computes new/due_soon/due_today otherwise.
+  status           ChequeStatus    @default(new)
+  notes            String?
+  fileUrl          String?         @map("file_url")
+  /// Once settled, link to the auto-generated Receipt/Payment for traceability.
+  receiptId        String?         @unique @map("receipt_id") @db.Uuid
+  paymentId        String?         @unique @map("payment_id") @db.Uuid
+  /// Reason set when status moves to bounced/cancelled.
+  bounceReason     String?         @map("bounce_reason") @db.VarChar(300)
+  bouncedAt        DateTime?       @map("bounced_at") @db.Timestamptz
+  settledAt        DateTime?       @map("settled_at") @db.Timestamptz
+  /// Alert tracking — CSV of fired thresholds ("7,3,0").
+  alertedDays      String?         @map("alerted_days") @db.VarChar(40)
+  createdBy        String?         @map("created_by") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime?       @map("deleted_at") @db.Timestamptz
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  bank     Bank?     @relation(fields: [bankId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  creator  User?     @relation("ChequeCreatedBy", fields: [createdBy], references: [id])
+  receipt  Receipt?  @relation(fields: [receiptId], references: [id])
+  payment  Payment?  @relation(fields: [paymentId], references: [id])
+  logs     ChequeStatusLog[]
+
+  @@index([tenantId, direction])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+  @@map("cheques")
+}
+
+/// Append-only log of cheque status transitions (who/when/why).
+model ChequeStatusLog {
+  id        BigInt        @id @default(autoincrement())
+  chequeId  String        @map("cheque_id") @db.Uuid
+  userId    String?       @map("user_id") @db.Uuid
+  fromStatus ChequeStatus? @map("from_status")
+  toStatus   ChequeStatus  @map("to_status")
+  note      String?
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  cheque Cheque @relation(fields: [chequeId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([chequeId, createdAt])
+  @@map("cheque_status_logs")
 }
 
 model TelegramLink {

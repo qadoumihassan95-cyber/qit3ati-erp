@@ -25,15 +25,22 @@ import { ReturnsModule }   from './modules/returns/returns.module';
 import { ReportsModule }   from './modules/reports/reports.module';
 import { InvoicesModule }  from './modules/invoices/invoices.module';
 import { AuditModule }     from './modules/audit/audit.module';
+import { PapersModule }    from './modules/papers/papers.module';
+import { ChequesModule }   from './modules/cheques/cheques.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // Global throttler: 120 req/min per IP by default.
-    // Strict 5/min on `/auth/login` is applied via the `@Throttle` decorator on
-    // that route. Using a single tracker keeps startup simple and predictable
-    // (named throttlers were causing edge-case startup issues on Render).
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // Two named throttlers. Both apply globally to every route, but their global
+    // limits are loose. The strict 5/min on /auth/login is achieved by
+    // OVERRIDING the 'short' tracker on that route via @Throttle({ short: {...} }).
+    //   - default: 120 req/min per IP (caps normal app usage)
+    //   - short:   1000 req/min per IP (effectively unlimited globally;
+    //              overridden down to 5/min on the login endpoint only)
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120  },
+      { name: 'short',   ttl: 60_000, limit: 1000 },
+    ]),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -53,6 +60,8 @@ import { AuditModule }     from './modules/audit/audit.module';
     ReportsModule,
     InvoicesModule,
     AuditModule,
+    PapersModule,
+    ChequesModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

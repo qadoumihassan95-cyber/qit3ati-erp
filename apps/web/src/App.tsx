@@ -17,6 +17,8 @@ import ReportsPage from '@/pages/reports/ReportsPage';
 import BranchesPage from '@/pages/branches/BranchesPage';
 import AuditPage from '@/pages/audit/AuditPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
+import PapersPage from '@/pages/papers/PapersPage';
+import ChequesPage from '@/pages/cheques/ChequesPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -50,6 +52,8 @@ export default function App() {
         <Route path="reports"      element={<ReportsPage />} />
         <Route path="branches"     element={<BranchesPage />} />
         <Route path="audit"        element={<AuditPage />} />
+        <Route path="papers"       element={<PapersPage />} />
+        <Route path="cheques"      element={<ChequesPage />} />
         <Route path="settings"     element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

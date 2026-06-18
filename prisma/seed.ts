@@ -52,6 +52,13 @@ const PERMISSIONS: Array<{ code: string; module: string; labelAr: string }> = [
   { code: 'settings.edit',  module: 'admin',     labelAr: 'تعديل الإعدادات والهوية' },
   // audit
   { code: 'audit.view',     module: 'admin',     labelAr: 'عرض سجل التدقيق' },
+  // official papers (licenses, taxes, lease, customs...)
+  { code: 'documents.view',   module: 'admin',  labelAr: 'عرض الأوراق الرسمية' },
+  { code: 'documents.manage', module: 'admin',  labelAr: 'إدارة الأوراق الرسمية' },
+  // cheques (incoming/outgoing)
+  { code: 'cheques.view',     module: 'finance', labelAr: 'عرض الشيكات' },
+  { code: 'cheques.manage',   module: 'finance', labelAr: 'إدارة الشيكات' },
+  { code: 'cheques.collect',  module: 'finance', labelAr: 'تحصيل/دفع الشيكات' },
 ];
 
 // Permission bundles per role
@@ -62,11 +69,13 @@ const ROLE_PERMS: Record<string, string[]> = {
     'sales.view','sales.create','sales.cancel','discount.grant','cost.view',
     'parts.view','price.edit','stock.view','stock.adjust','transfer.create',
     'purchase.view','purchase.create','accounting.view',
+    'documents.view','cheques.view',
   ],
-  accountant: ['accounting.view','accounting.entry','sales.view','purchase.view','stock.view','cost.view'],
+  accountant: ['accounting.view','accounting.entry','sales.view','purchase.view','stock.view','cost.view',
+               'documents.view','documents.manage','cheques.view','cheques.manage','cheques.collect'],
   warehouse:  ['stock.view','stock.adjust','transfer.create','parts.view'],
   cashier:    ['sales.view','sales.create','parts.view','stock.view'],
-  viewer:     ['sales.view','parts.view','stock.view','accounting.view'],
+  viewer:     ['sales.view','parts.view','stock.view','accounting.view','documents.view','cheques.view'],
 };
 
 // ---------- Demo catalog ----------
