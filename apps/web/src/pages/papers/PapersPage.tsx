@@ -5,6 +5,8 @@ import { Plus, Search, AlertCircle, AlertTriangle, RefreshCw, Pencil, Trash2, Fi
 import { useAuth } from '@/hooks/useAuth';
 import Modal from '@/components/ui/Modal';
 import { errMsg, fmtDate } from '@/lib/format';
+import PrintBar from '@/components/print/PrintBar';
+import type { PrintColumn } from '@/lib/print';
 
 type PaperType =
   | 'shop_license' | 'commercial_reg' | 'profession_license' | 'tax'
@@ -195,9 +197,42 @@ export default function PapersPage() {
     enabled: !!historyOf,
   });
 
+  const printCols: PrintColumn<Paper>[] = [
+    { key: 'title',      label: 'العنوان',      width: '25%' },
+    { key: 'type',       label: 'النوع',         format: (v) => TYPE_LABEL[v as PaperType] ?? v },
+    { key: 'docNumber',  label: 'الرقم',         format: (v) => v ?? '—' },
+    { key: 'issuer',     label: 'الجهة المصدرة', format: (v) => v ?? '—' },
+    { key: 'branch',     label: 'الفرع',         format: (_, r) => r.branch?.name ?? '—' },
+    { key: 'issuedAt',   label: 'تاريخ الإصدار',  format: (v) => fmtDate(v) },
+    { key: 'expiresAt',  label: 'تاريخ الانتهاء', format: (v) => fmtDate(v) },
+    { key: 'daysLeft',   label: 'المتبقّي (يوم)',  number: true,
+      format: (v) => v === null ? '—' : Number(v) < 0 ? `متأخّر ${Math.abs(Number(v))}` : String(v) },
+    { key: 'liveStatus', label: 'الحالة',         format: (v: PaperStatus) => STATUS_LABEL[v] ?? v },
+  ];
+
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">الأوراق الرسمية</h1>
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h1 className="text-2xl font-extrabold">الأوراق الرسمية</h1>
+        <PrintBar
+          title="الأوراق الرسمية"
+          subtitle={[
+            q && `بحث: "${q}"`,
+            typeF   !== 'all' && `النوع: ${TYPE_LABEL[typeF]}`,
+            statusF !== 'all' && `الحالة: ${STATUS_LABEL[statusF]}`,
+            expiringIn !== '' && `تنتهي خلال ${expiringIn} يوم`,
+          ].filter(Boolean).join(' • ') || undefined}
+          columns={printCols}
+          rows={items}
+          summary={[
+            { label: 'الإجمالي', value: items.length },
+            { label: 'سارية', value: summary.active },
+            { label: 'قاربت', value: summary.expiring_soon },
+            { label: 'منتهية', value: summary.expired },
+            { label: 'تحتاج تجديد', value: summary.renewal_needed },
+          ]}
+        />
+      </div>
       <p className="text-muted text-sm mb-6">
         إدارة وتتبع الرخص، السجلات التجارية، الضرائب، التأمين، عقود الإيجار، الجمارك...
       </p>

@@ -8,6 +8,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import Modal from '@/components/ui/Modal';
 import { fmtMoney, fmtDate, errMsg } from '@/lib/format';
+import PrintBar from '@/components/print/PrintBar';
+import type { PrintColumn } from '@/lib/print';
 
 type Direction = 'incoming' | 'outgoing';
 type Status = 'new' | 'due_soon' | 'due_today' | 'collected' | 'paid' | 'bounced' | 'cancelled';
@@ -232,33 +234,42 @@ export default function ChequesPage() {
     enabled: !!historyOf,
   });
 
-  // ---- export to CSV (client-side) ----
-  const exportCsv = () => {
-    const rows = [
-      ['رقم الشيك','البنك','الطرف','المبلغ','تاريخ الاستحقاق','الحالة','المتبقّي بالأيام','ملاحظات'],
-      ...items.map((c) => [
-        c.chequeNo,
-        c.bank?.name ?? c.bankName ?? '',
-        c.customer?.name ?? c.supplier?.name ?? c.partyName ?? '',
-        String(c.amount),
-        c.dueDate?.slice(0, 10) ?? '',
-        STATUS_LABEL[c.liveStatus],
-        String(c.daysLeft),
-        c.notes ?? '',
-      ]),
-    ];
-    const csv = '﻿' + rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `cheques-${tab}-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  // CSV export removed — replaced by unified PrintBar (Print/Preview/PDF/Excel)
+
+  const printCols: PrintColumn<Cheque>[] = [
+    { key: 'chequeNo',  label: 'رقم الشيك',  width: '12%' },
+    { key: 'bank',      label: 'البنك',       format: (_, r) => r.bank?.name ?? r.bankName ?? '—' },
+    { key: 'party',     label: tab === 'incoming' ? 'صاحب الشيك / العميل' : 'المستفيد / المورد',
+      format: (_, r) => r.customer?.name ?? r.supplier?.name ?? r.partyName ?? '—' },
+    { key: 'amount',    label: 'المبلغ',       number: true, format: (v) => fmtMoney(v) },
+    { key: 'dueDate',   label: 'الاستحقاق',    format: (v) => fmtDate(v) },
+    { key: 'liveStatus', label: 'الحالة',      format: (v: Status) => STATUS_LABEL[v] },
+    { key: 'daysLeft',  label: 'المتبقّي (يوم)', number: true,
+      format: (v) => Number(v) >= 0 ? String(v) : `متأخّر ${Math.abs(Number(v))}` },
+    { key: 'notes',     label: 'ملاحظات',     format: (v) => v ?? '—', hideInPrint: true },
+  ];
+
+  const totalAmount = items.reduce((sum, c) => sum + Number(c.amount ?? 0), 0);
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">الشيكات</h1>
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h1 className="text-2xl font-extrabold">الشيكات</h1>
+        <PrintBar
+          title={`الشيكات — ${tab === 'incoming' ? 'لنا (واردة)' : 'علينا (صادرة)'}`}
+          subtitle={[
+            q && `بحث: "${q}"`,
+            statusF !== 'all' && `الحالة: ${STATUS_LABEL[statusF]}`,
+            from && to && `من ${from} إلى ${to}`,
+          ].filter(Boolean).join(' • ') || undefined}
+          columns={printCols}
+          rows={items}
+          summary={[
+            { label: 'عدد الشيكات', value: items.length },
+            { label: 'الإجمالي',     value: fmtMoney(totalAmount) },
+          ]}
+        />
+      </div>
       <p className="text-muted text-sm mb-6">
         تتبّع شيكاتك الواردة (مستحقّة لك) والصادرة (مستحقّة عليك) — مع تحصيل/دفع تلقائي وربط بالمحاسبة.
       </p>
@@ -303,7 +314,6 @@ export default function ChequesPage() {
           </select>
           <input className="input max-w-[160px]" type="date" value={from} onChange={(e) => setFrom(e.target.value)} title="من" />
           <input className="input max-w-[160px]" type="date" value={to}   onChange={(e) => setTo(e.target.value)}   title="إلى" />
-          <button className="btn-ghost" onClick={exportCsv}>تصدير CSV</button>
           <button className="btn-primary" onClick={openCreate}>
             <Plus size={16} /> شيك جديد
           </button>

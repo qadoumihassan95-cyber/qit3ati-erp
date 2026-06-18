@@ -7,6 +7,8 @@ import PageHeader from '@/components/ui/PageHeader';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Search, Users, Banknote, Edit3 } from 'lucide-react';
+import PrintBar from '@/components/print/PrintBar';
+import type { PrintColumn } from '@/lib/print';
 
 interface Customer {
   id: string; name: string; phone: string | null; email: string | null;
@@ -41,9 +43,28 @@ export default function CustomersPage() {
         title="العملاء"
         subtitle="إدارة قاعدة بيانات العملاء، أسعارهم، وسقوف ائتمانهم"
         actions={
-          <button className="btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus size={16} /> عميل جديد
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <PrintBar<Customer>
+              title="العملاء"
+              subtitle={q ? `بحث: "${q}"` : undefined}
+              columns={[
+                { key: 'name',        label: 'الاسم',         width: '25%' },
+                { key: 'phone',       label: 'الهاتف',         format: (v) => v ?? '—' },
+                { key: 'email',       label: 'البريد',         format: (v) => v ?? '—' },
+                { key: 'priceTier',   label: 'الفئة',          format: (v) => TIER_LABEL[v] ?? v },
+                { key: 'creditLimit', label: 'السقف الائتماني', number: true, format: (v) => fmtMoney(v) },
+                { key: 'balance',     label: 'الرصيد المستحق', number: true, format: (v) => fmtMoney(v) },
+              ]}
+              rows={data ?? []}
+              summary={[
+                { label: 'عدد العملاء', value: (data ?? []).length },
+                { label: 'إجمالي الذمم', value: fmtMoney((data ?? []).reduce((s, c) => s + Number(c.balance ?? 0), 0)) },
+              ]}
+            />
+            <button className="btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+              <Plus size={16} /> عميل جديد
+            </button>
+          </div>
         }
       />
 

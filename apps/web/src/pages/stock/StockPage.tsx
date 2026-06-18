@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import PrintBar from '@/components/print/PrintBar';
 
 interface Row {
   id: string; branchId: string; branchName: string;
@@ -23,9 +24,32 @@ export default function StockPage() {
     queryFn: async () => (await api.get('/stock', { params: { branchId } })).data,
   });
 
+  const rows = data ?? [];
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">المخزون والفروع</h1>
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h1 className="text-2xl font-extrabold">المخزون والفروع</h1>
+        <PrintBar<Row>
+          title="المخزون والفروع"
+          columns={[
+            { key: 'name',       label: 'القطعة',       width: '25%' },
+            { key: 'sku',        label: 'SKU' },
+            { key: 'partNumber', label: 'Part Number', format: (v) => v ?? '—' },
+            { key: 'branchName', label: 'الفرع' },
+            { key: 'quantity',   label: 'الكمية',       number: true },
+            { key: 'minStock',   label: 'الحد الأدنى',  number: true },
+            { key: 'location',   label: 'الموقع',       format: (v) => v ?? '—' },
+            { key: 'status',     label: 'الحالة',       format: (v) => STATUS_LABEL[v] || v },
+          ]}
+          rows={rows}
+          summary={[
+            { label: 'إجمالي السطور', value: rows.length },
+            { label: 'متوفرة', value: rows.filter((r) => r.status === 'available').length },
+            { label: 'منخفضة', value: rows.filter((r) => r.status === 'low').length },
+            { label: 'نفدت',   value: rows.filter((r) => r.status === 'out').length },
+          ]}
+        />
+      </div>
       <p className="text-muted text-sm mb-6">مخزون مستقل لكل فرع + تحويل بضاعة بينها</p>
 
       <div className="card">

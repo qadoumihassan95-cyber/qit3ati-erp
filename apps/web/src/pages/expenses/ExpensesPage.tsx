@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Receipt, Tag } from 'lucide-react';
+import PrintBar from '@/components/print/PrintBar';
 
 interface Expense {
   id: string; amount: number | string; description: string | null;
@@ -37,10 +38,26 @@ export default function ExpensesPage() {
         title="المصاريف"
         subtitle="تتبّع كل ما يخرج من الصندوق — إيجار، كهرباء، نقل، رواتب..."
         actions={
-          <>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <PrintBar<Expense>
+              title="المصاريف"
+              columns={[
+                { key: 'expenseDate', label: 'التاريخ',  format: (v) => fmtDate(v) },
+                { key: 'description', label: 'الوصف',    format: (v) => v ?? '—' },
+                { key: 'category',    label: 'الفئة',     format: (_, r) => r.category?.name ?? '—' },
+                { key: 'branch',      label: 'الفرع',     format: (_, r) => r.branch?.name ?? '—' },
+                { key: 'creator',     label: 'بواسطة',   format: (_, r) => r.creator?.fullName ?? '—' },
+                { key: 'amount',      label: 'المبلغ',    number: true, format: (v) => fmtMoney(v) },
+              ]}
+              rows={data ?? []}
+              summary={[
+                { label: 'عدد المصاريف', value: (data ?? []).length },
+                { label: 'الإجمالي', value: fmtMoney(total) },
+              ]}
+            />
             <button className="btn-ghost" onClick={() => setShowCats(true)}><Tag size={16} /> فئات المصاريف</button>
             <button className="btn-primary" onClick={() => setShow(true)}><Plus size={16} /> مصروف جديد</button>
-          </>
+          </div>
         }
       />
 

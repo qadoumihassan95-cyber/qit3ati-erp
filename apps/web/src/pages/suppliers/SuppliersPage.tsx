@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Search, Building2, Banknote, Edit3 } from 'lucide-react';
+import PrintBar from '@/components/print/PrintBar';
 
 interface Supplier {
   id: string; name: string; phone: string | null; email: string | null;
@@ -32,7 +33,29 @@ export default function SuppliersPage() {
       <PageHeader
         title="الموردون"
         subtitle="إدارة الموردين ومتابعة ما لهم علينا"
-        actions={<button className="btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={16} /> مورد جديد</button>}
+        actions={
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <PrintBar<Supplier>
+              title="الموردون"
+              subtitle={q ? `بحث: "${q}"` : undefined}
+              columns={[
+                { key: 'name',      label: 'الاسم',          width: '30%' },
+                { key: 'phone',     label: 'الهاتف',          format: (v) => v ?? '—' },
+                { key: 'email',     label: 'البريد',          format: (v) => v ?? '—' },
+                { key: 'taxNumber', label: 'الرقم الضريبي',   format: (v) => v ?? '—' },
+                { key: 'balance',   label: 'الرصيد المستحق',  number: true, format: (v) => fmtMoney(v) },
+              ]}
+              rows={data ?? []}
+              summary={[
+                { label: 'عدد الموردين',  value: (data ?? []).length },
+                { label: 'إجمالي المستحقات', value: fmtMoney((data ?? []).reduce((s, x) => s + Number(x.balance ?? 0), 0)) },
+              ]}
+            />
+            <button className="btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+              <Plus size={16} /> مورد جديد
+            </button>
+          </div>
+        }
       />
 
       <div className="card">
