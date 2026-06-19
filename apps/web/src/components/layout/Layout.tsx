@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote, Landmark } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote, Landmark, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
@@ -8,6 +8,7 @@ interface NavItem { to: string; label: string; icon: LucideIcon; section?: strin
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'لوحة التحكم',     icon: LayoutDashboard, section: 'الرئيسية' },
   { to: '/pos',       label: 'نقطة البيع POS',  icon: ShoppingCart },
+  { to: '/invoices',  label: 'فواتير البيع',    icon: FileText },
   { to: '/parts',     label: 'الأصناف والقطع',  icon: Wrench,          section: 'المخزون' },
   { to: '/stock',     label: 'المخزون والفروع', icon: Boxes },
   { to: '/purchases', label: 'المشتريات',       icon: Truck },

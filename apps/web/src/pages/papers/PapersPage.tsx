@@ -334,29 +334,29 @@ export default function PapersPage() {
                   </td>
                   <td className="px-2.5 py-3">
                     <div className="flex items-center gap-1 flex-wrap">
-                      <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل">
+                      <button onClick={() => openEdit(p)} className="p-2 sm:p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل">
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => openRenew(p)} className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600" title="تجديد">
+                      <button onClick={() => openRenew(p)} className="p-2 sm:p-1.5 rounded hover:bg-emerald-50 text-emerald-600" title="تجديد">
                         <RefreshCw size={16} />
                       </button>
-                      <button onClick={() => setManualStatus(p, 'renewal_needed')} className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="وضع: تحتاج تجديد">
+                      <button onClick={() => setManualStatus(p, 'renewal_needed')} className="p-2 sm:p-1.5 rounded hover:bg-amber-50 text-amber-600" title="وضع: تحتاج تجديد">
                         <AlertTriangle size={16} />
                       </button>
-                      <button onClick={() => setManualStatus(p, 'in_progress')} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="وضع: قيد المعاملة">
+                      <button onClick={() => setManualStatus(p, 'in_progress')} className="p-2 sm:p-1.5 rounded hover:bg-blue-50 text-blue-600" title="وضع: قيد المعاملة">
                         <FileText size={16} />
                       </button>
-                      <button onClick={() => setHistoryOf(p)} className="p-1.5 rounded hover:bg-slate-100 text-slate-600" title="سجل التعديلات">
+                      <button onClick={() => setHistoryOf(p)} className="p-2 sm:p-1.5 rounded hover:bg-slate-100 text-slate-600" title="سجل التعديلات">
                         <History size={16} />
                       </button>
                       {p.fileUrl && (
                         <a href={p.fileUrl} target="_blank" rel="noopener noreferrer"
-                           className="p-1.5 rounded hover:bg-slate-100 text-slate-700" title="فتح الملف">
+                           className="p-2 sm:p-1.5 rounded hover:bg-slate-100 text-slate-700" title="فتح الملف">
                           <FileText size={16} />
                         </a>
                       )}
                       <button onClick={() => { setDelTarget(p); setDelErr(null); }}
-                              className="p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف">
+                              className="p-2 sm:p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف">
                         <Trash2 size={16} />
                       </button>
                     </div>

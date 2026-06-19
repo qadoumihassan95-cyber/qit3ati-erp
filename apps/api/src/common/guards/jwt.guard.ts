@@ -22,7 +22,7 @@ export class JwtAuthGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest();
     const header: string | undefined = req.headers['authorization'];
     if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('missing bearer token');
+      throw new UnauthorizedException('يجب تسجيل الدخول للوصول لهذه الصفحة');
     }
     const token = header.slice('Bearer '.length).trim();
     try {
@@ -31,7 +31,7 @@ export class JwtAuthGuard implements CanActivate {
       req.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException('invalid or expired token');
+      throw new UnauthorizedException('انتهت صلاحية جلستك — يرجى تسجيل الدخول مجدّداً');
     }
   }
 }

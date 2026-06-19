@@ -16,13 +16,13 @@ export class PermissionsGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest();
     const user: JwtUser | undefined = req.user;
-    if (!user) throw new ForbiddenException('unauthenticated');
+    if (!user) throw new ForbiddenException('غير مصرّح — يرجى تسجيل الدخول');
     if (user.isSuperAdmin) return true;
 
     const granted = new Set(user.permissions ?? []);
     const missing = required.filter((p) => !granted.has(p));
     if (missing.length > 0) {
-      throw new ForbiddenException(`missing permissions: ${missing.join(', ')}`);
+      throw new ForbiddenException(`ليس لديك صلاحية: ${missing.join('، ')}`);
     }
     return true;
   }

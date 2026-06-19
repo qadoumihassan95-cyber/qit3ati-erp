@@ -5,7 +5,7 @@ export const Tenant = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string => {
     const req = ctx.switchToHttp().getRequest();
     const id = req.user?.tenantId ?? req.tenantId;
-    if (!id) throw new BadRequestException('tenant context missing');
+    if (!id) throw new BadRequestException('سياق الشركة مفقود — يرجى تسجيل الدخول');
     return id;
   },
 );

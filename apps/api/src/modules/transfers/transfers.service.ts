@@ -31,9 +31,9 @@ export class TransfersService {
    */
   async create(tenantId: string, createdBy: string, input: CreateTransferInput) {
     if (input.fromBranch === input.toBranch) {
-      throw new BadRequestException('source and destination branches must differ');
+      throw new BadRequestException('الفرع المصدر والوجهة يجب أن يكونا مختلفين');
     }
-    if (!input.items?.length) throw new BadRequestException('transfer has no items');
+    if (!input.items?.length) throw new BadRequestException('التحويل لا يحوي أيّ قطع');
 
     return this.prisma.$transaction(async (tx) => {
       // Validate source branch belongs to tenant
@@ -52,7 +52,7 @@ export class TransfersService {
       const destBranch = await tx.branch.findFirst({
         where: { id: input.toBranch, tenantId, deletedAt: null },
       });
-      if (!destBranch) throw new NotFoundException('destination branch not found');
+      if (!destBranch) throw new NotFoundException('الفرع الوجهة غير موجود');
 
       const partIds = input.items.map((i) => i.partId);
       const stocks = await tx.stock.findMany({
@@ -62,7 +62,7 @@ export class TransfersService {
 
       // pre-validate quantities
       for (const it of input.items) {
-        if (it.qty <= 0) throw new BadRequestException('qty must be > 0');
+        if (it.qty <= 0) throw new BadRequestException('الكمية يجب أن تكون أكبر من صفر');
         const st = stockByPart.get(it.partId);
         const available = st ? Number(st.quantity) - Number(st.reserved) : 0;
         if (available < it.qty) {
@@ -84,13 +84,18 @@ export class TransfersService {
         include: { items: true },
       });
 
-      // decrement source stock + log movements
+      // ATOMIC source stock decrement (see SalesService.createSale for explanation)
       for (const it of input.items) {
-        const st = stockByPart.get(it.partId)!;
-        await tx.stock.update({
-          where: { id: st.id },
+        const result = await tx.stock.updateMany({
+          where: {
+            tenantId, warehouseId: fromWarehouse.id, partId: it.partId,
+            quantity: { gte: it.qty },
+          },
           data: { quantity: { decrement: it.qty } },
         });
+        if (result.count === 0) {
+          throw new BadRequestException(`الكمية غير كافية للقطعة ${it.partId} في الفرع المصدر`);
+        }
         await tx.stockMovement.create({
           data: {
             tenantId,
@@ -122,7 +127,7 @@ export class TransfersService {
         where: { id: transferId, tenantId },
         include: { items: true },
       });
-      if (!transfer) throw new NotFoundException('transfer not found');
+      if (!transfer) throw new NotFoundException('التحويل غير موجود');
       if (transfer.status !== 'in_transit' && transfer.status !== 'pending') {
         throw new BadRequestException(`transfer is already ${transfer.status}`);
       }
@@ -131,13 +136,13 @@ export class TransfersService {
         where: { tenantId, branchId: toBranch },
         orderBy: { isMain: 'desc' },
       });
-      if (!destWarehouse) throw new BadRequestException('destination branch has no warehouse — create one first');
+      if (!destWarehouse) throw new BadRequestException('لا يوجد مستودع للفرع الوجهة — أنشئ مستودعاً أولاً');
 
       const receivedByPart = new Map(items.map((i) => [i.partId, i.qtyReceived]));
 
       for (const line of transfer.items) {
         const recv = receivedByPart.get(line.partId) ?? Number(line.qtySent ?? 0);
-        if (recv < 0) throw new BadRequestException('qty received cannot be negative');
+        if (recv < 0) throw new BadRequestException('الكمية المستلَمة لا يمكن أن تكون سالبة');
 
         const sent = Number(line.qtySent ?? 0);
         const lost = sent - recv;
@@ -213,7 +218,7 @@ export class TransfersService {
         where: { id: transferId, tenantId },
         include: { items: true },
       });
-      if (!transfer) throw new NotFoundException('transfer not found');
+      if (!transfer) throw new NotFoundException('التحويل غير موجود');
       if (transfer.status === 'received' || transfer.status === 'cancelled') {
         throw new BadRequestException(`cannot cancel a ${transfer.status} transfer`);
       }
@@ -279,7 +284,7 @@ export class TransfersService {
         items:   { include: { part: true } },
       },
     });
-    if (!t) throw new NotFoundException('transfer not found');
+    if (!t) throw new NotFoundException('التحويل غير موجود');
     return t;
   }
 }

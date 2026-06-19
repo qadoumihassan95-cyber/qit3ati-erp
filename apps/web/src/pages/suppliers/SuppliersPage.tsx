@@ -96,11 +96,11 @@ export default function SuppliersPage() {
                     <td className="px-3 py-3 text-left">
                       <div className="flex gap-2 justify-end">
                         {Number(s.balance) > 0 && (
-                          <button onClick={() => setShowPay(s)} className="btn-ghost py-1 px-3 text-xs">
+                          <button onClick={() => setShowPay(s)} className="btn-ghost py-2 px-3 text-xs sm:py-1">
                             <Banknote size={14} /> دفع
                           </button>
                         )}
-                        <button onClick={() => { setEditing(s); setShowForm(true); }} className="btn-ghost py-1 px-3 text-xs">
+                        <button onClick={() => { setEditing(s); setShowForm(true); }} className="btn-ghost py-2 px-3 text-xs sm:py-1">
                           <Edit3 size={14} /> تعديل
                         </button>
                       </div>

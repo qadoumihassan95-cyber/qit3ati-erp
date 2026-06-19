@@ -375,12 +375,12 @@ export default function PartsPage() {
                   <td className="px-2.5 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => openEdit(p)}
-                              className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل"
+                              className="p-2 sm:p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل"
                               aria-label={`تعديل ${p.name}`}>
                         <Pencil size={16} />
                       </button>
                       <button onClick={() => { setDelTarget(p); setDelErr(null); }}
-                              className="p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف"
+                              className="p-2 sm:p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف"
                               aria-label={`حذف ${p.name}`}>
                         <Trash2 size={16} />
                       </button>
@@ -414,7 +414,7 @@ export default function PartsPage() {
             </Field>
             <Field label="الاسم بالإنجليزي">
               <input className="input" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                     placeholder="Battery 70Ah" />
+                     placeholder="مثلاً Battery 70Ah" />
             </Field>
             <Field label="Part Number">
               <input className="input" value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} />

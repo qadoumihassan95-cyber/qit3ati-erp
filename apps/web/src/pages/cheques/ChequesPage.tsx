@@ -371,39 +371,39 @@ export default function ChequesPage() {
                       <div className="flex items-center gap-1 flex-wrap">
                         {!isTerminal && (
                           <button onClick={() => settle(c)}
-                                  className="p-1.5 rounded hover:bg-green-50 text-green-700"
+                                  className="p-2 sm:p-1.5 rounded hover:bg-green-50 text-green-700"
                                   title={c.direction === 'incoming' ? 'تحصيل' : 'دفع'}>
                             <CheckCircle2 size={16} />
                           </button>
                         )}
                         {!isTerminal && (
                           <button onClick={() => { setBounceOf(c); setBounceReason(''); setBounceErr(null); }}
-                                  className="p-1.5 rounded hover:bg-red-50 text-red-600" title="رجع">
+                                  className="p-2 sm:p-1.5 rounded hover:bg-red-50 text-red-600" title="رجع">
                             <Ban size={16} />
                           </button>
                         )}
                         {!['collected','paid'].includes(c.liveStatus) && (
-                          <button onClick={() => cancel(c)} className="p-1.5 rounded hover:bg-amber-50 text-amber-700" title="إلغاء">
+                          <button onClick={() => cancel(c)} className="p-2 sm:p-1.5 rounded hover:bg-amber-50 text-amber-700" title="إلغاء">
                             <XCircle size={16} />
                           </button>
                         )}
                         {!['collected','paid'].includes(c.liveStatus) && (
-                          <button onClick={() => openEdit(c)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل">
+                          <button onClick={() => openEdit(c)} className="p-2 sm:p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل">
                             <Pencil size={16} />
                           </button>
                         )}
-                        <button onClick={() => setHistoryOf(c)} className="p-1.5 rounded hover:bg-slate-100 text-slate-600" title="السجل">
+                        <button onClick={() => setHistoryOf(c)} className="p-2 sm:p-1.5 rounded hover:bg-slate-100 text-slate-600" title="السجل">
                           <History size={16} />
                         </button>
                         {c.fileUrl && (
                           <a href={c.fileUrl} target="_blank" rel="noopener noreferrer"
-                             className="p-1.5 rounded hover:bg-slate-100 text-slate-700" title="فتح المرفق">
+                             className="p-2 sm:p-1.5 rounded hover:bg-slate-100 text-slate-700" title="فتح المرفق">
                             <FileText size={16} />
                           </a>
                         )}
                         {!['collected','paid'].includes(c.liveStatus) && (
                           <button onClick={() => { setDelTarget(c); setDelErr(null); }}
-                                  className="p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف">
+                                  className="p-2 sm:p-1.5 rounded hover:bg-red-50 text-red-600" title="حذف">
                             <Trash2 size={16} />
                           </button>
                         )}

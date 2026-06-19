@@ -77,7 +77,7 @@ export class JofotaraService {
     if (input.autoSendOnSale  !== undefined) data.autoSendOnSale  = !!input.autoSendOnSale;
     if (input.timeoutMs       !== undefined) {
       const t = Number(input.timeoutMs);
-      if (!(t >= 1_000 && t <= 60_000)) throw new BadRequestException('timeoutMs must be 1000..60000');
+      if (!(t >= 1_000 && t <= 60_000)) throw new BadRequestException('مهلة الاتصال يجب أن تكون بين 1000 و 60000 ميلي ثانية');
       data.timeoutMs = t;
     }
     if (input.secret !== undefined && input.secret !== null && input.secret !== '') {

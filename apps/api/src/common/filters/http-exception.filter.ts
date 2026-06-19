@@ -36,7 +36,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           break;
         case 'P2003':
           status = HttpStatus.BAD_REQUEST;
-          message = 'مرجع غير صالح — تأكد من الفرع/الصنف/الزبون';
+          message = 'مرجع غير صالح — تأكّد من الفرع/الصنف/العميل';
           break;
         case 'P2000':
           status = HttpStatus.BAD_REQUEST;

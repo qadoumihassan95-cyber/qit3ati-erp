@@ -32,10 +32,10 @@ export default function ReportsPage() {
       />
 
       <div className="card mb-4">
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex gap-2 mb-3 overflow-x-auto -mx-3 px-3 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:px-0">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-                    className={'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition ' +
+                    className={'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap shrink-0 ' +
                       (tab === t.id ? 'bg-primary text-white' : 'bg-bg text-muted hover:bg-line')}>
               {t.icon}<span>{t.label}</span>
             </button>

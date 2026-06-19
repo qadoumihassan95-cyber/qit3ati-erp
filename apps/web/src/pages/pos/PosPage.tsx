@@ -232,23 +232,32 @@ export default function PosPage() {
           )}
         </div>
 
-        {/* Cart */}
-        <div className="card h-fit lg:sticky lg:top-24">
-          <h3 className="font-extrabold mb-3">🛒 سلة البيع</h3>
+        {/* Cart — sticky على mobile (تحت الـheader مباشرة) و desktop (top-24) */}
+        <div className="card h-fit sticky top-[68px] z-20 lg:top-24 shadow-md lg:shadow-none">
+          <h3 className="font-extrabold mb-3 flex items-center justify-between">
+            <span>🛒 سلة البيع</span>
+            {cart.length > 0 && <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">{cart.length}</span>}
+          </h3>
           {cart.length === 0 ? (
-            <p className="text-center text-muted text-sm py-8">السلة فارغة — اختر قطعة</p>
+            <p className="text-center text-muted text-sm py-6">السلة فارغة — اختر قطعة</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[40vh] lg:max-h-none overflow-y-auto">
               {cart.map((c) => (
                 <div key={c.partId} className="flex items-center justify-between gap-2 text-sm py-2 border-b border-dashed border-line">
-                  <span className="font-semibold flex-1">{c.name}</span>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => updateQty(c.partId, c.qty - 1)} className="w-6 h-6 rounded bg-bg hover:bg-line">−</button>
-                    <span className="font-bold w-6 text-center">{c.qty}</span>
-                    <button onClick={() => updateQty(c.partId, c.qty + 1)} className="w-6 h-6 rounded bg-bg hover:bg-line">+</button>
-                    <button onClick={() => updateQty(c.partId, 0)} className="text-red-500 ms-1" aria-label="إزالة"><X size={14} /></button>
+                  <span className="font-semibold flex-1 line-clamp-2">{c.name}</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => updateQty(c.partId, c.qty - 1)}
+                            className="w-9 h-9 lg:w-7 lg:h-7 rounded bg-bg hover:bg-line text-lg font-bold"
+                            aria-label="إنقاص">−</button>
+                    <span className="font-bold w-7 text-center">{c.qty}</span>
+                    <button onClick={() => updateQty(c.partId, c.qty + 1)}
+                            className="w-9 h-9 lg:w-7 lg:h-7 rounded bg-bg hover:bg-line text-lg font-bold"
+                            aria-label="زيادة">+</button>
+                    <button onClick={() => updateQty(c.partId, 0)}
+                            className="text-red-500 ms-1 p-1.5 rounded hover:bg-red-50"
+                            aria-label="إزالة"><X size={16} /></button>
                   </div>
-                  <span className="font-bold w-16 text-left">{(c.unitPrice * c.qty).toFixed(2)}</span>
+                  <span className="font-bold w-16 text-left whitespace-nowrap">{(c.unitPrice * c.qty).toFixed(2)}</span>
                 </div>
               ))}
             </div>

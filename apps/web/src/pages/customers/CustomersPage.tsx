@@ -114,11 +114,11 @@ export default function CustomersPage() {
                     <td className="px-3 py-3 text-left">
                       <div className="flex gap-2 justify-end">
                         {Number(c.balance) > 0 && (
-                          <button onClick={() => setShowReceipt(c)} className="btn-ghost py-1 px-3 text-xs">
+                          <button onClick={() => setShowReceipt(c)} className="btn-ghost py-2 px-3 text-xs sm:py-1">
                             <Banknote size={14} /> تحصيل
                           </button>
                         )}
-                        <button onClick={() => { setEditing(c); setShowForm(true); }} className="btn-ghost py-1 px-3 text-xs">
+                        <button onClick={() => { setEditing(c); setShowForm(true); }} className="btn-ghost py-2 px-3 text-xs sm:py-1">
                           <Edit3 size={14} /> تعديل
                         </button>
                       </div>
@@ -210,7 +210,7 @@ function ReceiptForm({ customer, onDone }: { customer: Customer; onDone: () => v
   return (
     <form onSubmit={handleSubmit((d) => mut.mutate(d))} className="space-y-3">
       <div className="bg-bg p-3 rounded-xl text-sm flex justify-between">
-        <span>الزبون: <b>{customer.name}</b></span>
+        <span>العميل: <b>{customer.name}</b></span>
         <span>المستحق: <b className="text-red-600">{fmtMoney(customer.balance)}</b></span>
       </div>
       <Field label="المبلغ المُحصّل *" error={errors.amount?.message}>

@@ -40,12 +40,12 @@ export class AuthService {
    * If omitted, we resolve the user uniquely by email; users in multiple tenants must pass slug.
    */
   async login(email: string, password: string, tenantSlug?: string): Promise<LoginResult> {
-    if (!email || !password) throw new BadRequestException('email and password required');
+    if (!email || !password) throw new BadRequestException('البريد الإلكتروني وكلمة المرور مطلوبان');
 
     const where: any = { email };
     if (tenantSlug) {
       const t = await this.prisma.tenant.findUnique({ where: { slug: tenantSlug } });
-      if (!t) throw new UnauthorizedException('tenant not found');
+      if (!t) throw new UnauthorizedException('الشركة غير موجودة');
       where.tenantId = t.id;
     }
 
@@ -59,14 +59,14 @@ export class AuthService {
       take: 2,
     });
 
-    if (users.length === 0) throw new UnauthorizedException('invalid credentials');
-    if (users.length > 1) throw new UnauthorizedException('email belongs to multiple tenants — provide tenant slug');
+    if (users.length === 0) throw new UnauthorizedException('بيانات الدخول غير صحيحة');
+    if (users.length > 1) throw new UnauthorizedException('البريد مرتبط بأكثر من شركة — يرجى تحديد مُعرّف الشركة');
 
     const user = users[0]!;
-    if (!user.isActive) throw new UnauthorizedException('account disabled');
+    if (!user.isActive) throw new UnauthorizedException('الحساب معطّل — تواصل مع المالك');
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('invalid credentials');
+    if (!ok) throw new UnauthorizedException('بيانات الدخول غير صحيحة');
 
     const permissions = user.role?.rolePermissions.map((rp) => rp.permission.code) ?? [];
     const payload: JwtUser = {

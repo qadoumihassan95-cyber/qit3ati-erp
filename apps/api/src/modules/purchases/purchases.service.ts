@@ -56,7 +56,7 @@ export class PurchasesService {
         const supplier = await tx.supplier.findFirst({
           where: { id: input.supplierId, tenantId, deletedAt: null },
         });
-        if (!supplier) throw new NotFoundException('supplier not found');
+        if (!supplier) throw new NotFoundException('المورد غير موجود');
       }
 
       // load all parts at once
@@ -74,7 +74,7 @@ export class PurchasesService {
       for (const it of input.items) {
         const part = partsById.get(it.partId);
         if (!part) throw new NotFoundException(`part ${it.partId} not found`);
-        if (it.qty <= 0) throw new BadRequestException('qty must be > 0');
+        if (it.qty <= 0) throw new BadRequestException('الكمية يجب أن تكون أكبر من صفر');
         if (it.unitCost < 0) throw new BadRequestException('unit cost cannot be negative');
 
         const lineSubtotal = +(it.unitCost * it.qty).toFixed(3);

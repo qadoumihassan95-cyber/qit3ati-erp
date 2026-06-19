@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -20,13 +21,19 @@ export interface CreateSaleInput {
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SalesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    /** Late-resolved to avoid SalesModule ↔ JofotaraModule circular imports. */
+    private readonly moduleRef: ModuleRef,
+  ) {}
 
   async createSale(tenantId: string, soldBy: string, input: CreateSaleInput) {
-    if (!input.items?.length) throw new BadRequestException('cart is empty');
+    if (!input.items?.length) throw new BadRequestException('السلّة فارغة');
 
     // Atomic: read prices/stock, build invoice, decrement stock, write movements.
-    return this.prisma.$transaction(async (tx) => {
+    const invoice = await this.prisma.$transaction(async (tx) => {
       // Validate branch belongs to tenant (prevents misleading "insufficient stock"
       // errors when the branchId is invalid or from another tenant).
       const branch = await tx.branch.findFirst({
@@ -56,13 +63,17 @@ export class SalesService {
 
       for (const it of input.items) {
         const part = byId.get(it.partId);
-        if (!part) throw new NotFoundException(`part ${it.partId} not found`);
-        if (it.qty <= 0) throw new BadRequestException(`qty must be > 0`);
+        if (!part) throw new NotFoundException(`القطعة ${it.partId} غير موجودة`);
+        if (it.qty <= 0) throw new BadRequestException(`الكمية يجب أن تكون أكبر من صفر`);
 
+        // NOTE: real stock availability is validated atomically below via
+        // `updateMany ... where quantity >= qty`. The check here is a fast
+        // pre-flight using the snapshot we already loaded — concurrent sales
+        // will still be caught at decrement time.
         const stock = part.stocks[0];
-        const available = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
-        if (available < it.qty) {
-          throw new BadRequestException(`insufficient stock for ${part.name} (available ${available}, requested ${it.qty})`);
+        const snapshotAvailable = stock ? Number(stock.quantity) - Number(stock.reserved) : 0;
+        if (snapshotAvailable < it.qty) {
+          throw new BadRequestException(`الكمية غير كافية لـ ${part.name} (المتوفر ${snapshotAvailable}، المطلوب ${it.qty})`);
         }
 
         const tier = customer?.priceTier ?? 'retail';
@@ -114,13 +125,27 @@ export class SalesService {
         include: { items: true },
       });
 
-      // decrement stock + write movements (link to invoice id)
+      // ATOMIC stock decrement — only succeeds if quantity is still sufficient
+      // at the moment of the UPDATE. This eliminates the read-then-write race
+      // where N concurrent sales each see the same snapshot and all "pass" the
+      // pre-flight check.
+      //
+      // `updateMany ... where: { quantity: { gte: qty } }` returns count = 1
+      // only if a matching row was updated. If two concurrent calls race for
+      // the last unit, exactly one wins. The loser sees count = 0 → we throw.
       for (let i = 0; i < input.items.length; i++) {
         const it = input.items[i]!;
-        await tx.stock.updateMany({
-          where: { tenantId, branchId: input.branchId, partId: it.partId },
+        const result = await tx.stock.updateMany({
+          where: {
+            tenantId, branchId: input.branchId, partId: it.partId,
+            quantity: { gte: it.qty },     // ← atomicity gate
+          },
           data: { quantity: { decrement: it.qty } },
         });
+        if (result.count === 0) {
+          const partName = byId.get(it.partId)?.name ?? it.partId;
+          throw new BadRequestException(`الكمية غير كافية لـ ${partName} — نفدت بعد التحقّق الأوّلي`);
+        }
         await tx.stockMovement.create({
           data: { ...movements[i]!, refTable: 'sales_invoices', refId: invoice.id },
         });
@@ -135,6 +160,61 @@ export class SalesService {
       }
 
       return invoice;
+    });
+
+    // ---- Fire-and-forget JoFotara auto-send (does NOT block the response) ----
+    // We check the config OUTSIDE the transaction. If autoSendOnSale=true and
+    // creds are configured, we kick off a background submit. Failures are
+    // logged but never propagate to the caller — the sale itself is already
+    // committed and the operator can re-submit manually from /jofotara.
+    this.maybeAutoSubmitJofotara(tenantId, soldBy, invoice.id).catch((e) => {
+      this.logger.warn(`JoFotara auto-send skipped for ${invoice.id}: ${e?.message ?? e}`);
+    });
+
+    return invoice;
+  }
+
+  /**
+   * If JoFotara auto-send is on, mark the freshly-created invoice as `queued`
+   * and resolve JofotaraService lazily to actually submit it (fire-and-forget).
+   *
+   * NOTE: we deliberately don't `import JofotaraService` at the top of this
+   * file — that would couple SalesModule to JofotaraModule at compile time
+   * and risk circular imports as both modules grow. ModuleRef + class-name
+   * lookup keeps the link loose.
+   */
+  private async maybeAutoSubmitJofotara(tenantId: string, userId: string, invoiceId: string) {
+    const cfg = await this.prisma.jofotaraConfig.findUnique({
+      where: { tenantId },
+      select: { autoSendOnSale: true, clientId: true, secretEncrypted: true },
+    });
+    if (!cfg?.autoSendOnSale || !cfg.clientId || !cfg.secretEncrypted) return;
+
+    // Mark the invoice as queued so the UI shows "بانتظار الإرسال" immediately.
+    await this.prisma.salesInvoice.update({
+      where: { id: invoiceId },
+      data:  { jofotaraStatus: 'queued' },
+    }).catch(() => undefined);
+
+    // Try to resolve JofotaraService dynamically. If it's not registered (e.g.
+    // someone disabled the module), we just leave the invoice in `queued` and
+    // the operator can re-submit manually from /jofotara.
+    let jof: any;
+    try {
+      // The class must be made available via { strict: false } in ModuleRef.get
+      // We use require() to avoid TS pulling in the type and tightening the dep.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { JofotaraService } = require('../jofotara/jofotara.service');
+      jof = this.moduleRef.get(JofotaraService, { strict: false });
+    } catch {
+      return; // module not available; invoice stays in queued state
+    }
+    if (!jof || typeof jof.submitInvoice !== 'function') return;
+
+    setImmediate(() => {
+      jof.submitInvoice(tenantId, userId, invoiceId).catch((e: any) => {
+        this.logger.warn(`JoFotara auto-submit failed for ${invoiceId}: ${e?.message ?? e}`);
+      });
     });
   }
 
@@ -178,7 +258,7 @@ export class SalesService {
         seller: { select: { id: true, fullName: true } },
       },
     });
-    if (!inv) throw new NotFoundException('invoice not found');
+    if (!inv) throw new NotFoundException('الفاتورة غير موجودة');
     return inv;
   }
 }
