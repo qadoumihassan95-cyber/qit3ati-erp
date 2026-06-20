@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, Search, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote, Landmark, FileText } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote, Landmark, FileText } from 'lucide-react';
+import GlobalSearch from '@/components/search/GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
@@ -112,13 +113,7 @@ export default function Layout() {
             <Menu size={22} />
           </button>
 
-          <div className="flex-1 min-w-0 max-w-xl relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input
-              className="input pr-10 text-sm"
-              placeholder="ابحث بالاسم أو رقم القطعة أو OEM..."
-            />
-          </div>
+          <GlobalSearch />
 
           {currentBranch && (
             <select

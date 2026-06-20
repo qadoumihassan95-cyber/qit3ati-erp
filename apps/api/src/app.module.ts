@@ -28,6 +28,7 @@ import { AuditModule }     from './modules/audit/audit.module';
 import { PapersModule }    from './modules/papers/papers.module';
 import { ChequesModule }   from './modules/cheques/cheques.module';
 import { JofotaraModule }  from './modules/jofotara/jofotara.module';
+import { SearchModule }    from './modules/search/search.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { JofotaraModule }  from './modules/jofotara/jofotara.module';
     PapersModule,
     ChequesModule,
     JofotaraModule,
+    SearchModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },
