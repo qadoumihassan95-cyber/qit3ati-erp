@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { LayoutDashboard, ShoppingCart, Wrench, Boxes, Settings as SettingsIcon, Bell, LogOut, Truck, ArrowLeftRight, Menu, X, Users, Building2, Receipt, RotateCcw, FileBarChart, Building, Shield, FileCheck, Banknote, Landmark, FileText } from 'lucide-react';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import { useAuth } from '@/hooks/useAuth';
+import { useBranches } from '@/hooks/useBranches';
 import { useEffect, useState } from 'react';
 
 interface NavItem { to: string; label: string; icon: LucideIcon; section?: string }
@@ -28,10 +29,15 @@ const NAV: NavItem[] = [
 ];
 
 export default function Layout() {
-  const { user, branchId, branches, setBranch, logout } = useAuth((s) => ({
-    user: s.user, branchId: s.branchId, branches: s.user?.branches ?? [],
+  const { user, branchId, setBranch, logout } = useAuth((s) => ({
+    user: s.user, branchId: s.branchId,
     setBranch: s.setBranch, logout: s.logout,
   }));
+  // Live branches from API (not the stale snapshot inside the JWT).
+  // Fallback to the JWT snapshot until the first fetch completes — avoids
+  // an empty dropdown flash on page load.
+  const branchesQ = useBranches();
+  const branches  = branchesQ.data ?? user?.branches ?? [];
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
 

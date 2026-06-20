@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { Plus, Search, AlertCircle, AlertTriangle, RefreshCw, Pencil, Trash2, FileText, History, CheckCircle2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useBranches } from '@/hooks/useBranches';
 import Modal from '@/components/ui/Modal';
 import { errMsg, fmtDate } from '@/lib/format';
 import PrintBar from '@/components/print/PrintBar';
@@ -68,7 +68,8 @@ const EMPTY: PaperForm = {
 
 export default function PapersPage() {
   const qc = useQueryClient();
-  const branchesFromAuth = useAuth((s) => s.user?.branches ?? []);
+  // Live branches list (not the stale JWT snapshot) — see hooks/useBranches.ts
+  const branchesFromAuth = useBranches().data ?? [];
 
   const [q, setQ]                 = useState('');
   const [typeF, setTypeF]         = useState<'all' | PaperType>('all');

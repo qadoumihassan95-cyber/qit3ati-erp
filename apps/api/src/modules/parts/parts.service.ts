@@ -126,7 +126,7 @@ export class PartsService {
    * Tenant-scoped at every join — no cross-tenant leakage.
    */
   async fullDetails(tenantId: string, id: string) {
-    // 1) The part itself + stock + last 1 image (avoid pulling all images here)
+    // 1) The part itself + stock + last 1 image + alternative/compatible parts
     const part = await this.prisma.part.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: {
@@ -138,6 +138,17 @@ export class PartsService {
           },
         },
         images: { take: 1, orderBy: { id: 'asc' } },
+        // Cross-part substitutes (e.g. اِستعمل هذه القطعة بدلاً من تلك)
+        substitutesA: {
+          include: {
+            substitute: {
+              select: {
+                id: true, sku: true, name: true, partNumber: true,
+                retailPrice: true, manufacturer: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!part) throw new NotFoundException('القطعة غير موجودة');
@@ -343,6 +354,14 @@ export class PartsService {
         branchName: m.branch?.name ?? null,
         userName:  m.user?.fullName ?? null,
         createdAt: m.createdAt,
+      })),
+      substitutes: part.substitutesA.map((s) => ({
+        id:           s.substitute.id,
+        sku:          s.substitute.sku,
+        name:         s.substitute.name,
+        partNumber:   s.substitute.partNumber,
+        manufacturer: s.substitute.manufacturer,
+        retailPrice:  Number(s.substitute.retailPrice),
       })),
     };
   }

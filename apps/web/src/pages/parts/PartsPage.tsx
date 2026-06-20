@@ -493,7 +493,20 @@ export default function PartsPage() {
       </Modal>
 
       {/* -------- Part 360° Details (opens when a row is clicked) -------- */}
-      <PartDetailsModal partId={detailsPartId} onClose={() => setDetailsPartId(null)} />
+      <PartDetailsModal
+        partId={detailsPartId}
+        onClose={() => setDetailsPartId(null)}
+        onEdit={(id) => {
+          const part = items.find((p) => p.id === id);
+          if (part) { setDetailsPartId(null); openEdit(part); }
+        }}
+        onTransfer={() => {
+          // Navigate to /transfers — user can pre-populate the from/to/part there.
+          // Deep linking to the new-transfer form is a future improvement.
+          setDetailsPartId(null);
+          window.location.href = '/transfers';
+        }}
+      />
 
       {/* -------- Delete confirm -------- */}
       <Modal open={!!delTarget} onClose={() => !deleting && setDelTarget(null)} title="تأكيد الحذف" size="sm">

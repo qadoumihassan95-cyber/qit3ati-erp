@@ -5,8 +5,9 @@ import Modal from '@/components/ui/Modal';
 import { fmtMoney, fmtDate } from '@/lib/format';
 import {
   Package, Warehouse, ShoppingCart, TrendingUp, AlertTriangle,
-  Calendar, User, Building2, History, ArrowUpRight, ArrowDownRight,
+  Calendar, Building2, History, ArrowUpRight, ArrowDownRight,
   ExternalLink, Tag, Boxes, Wrench,
+  Pencil, Printer, ArrowLeftRight, Repeat, IdCard,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -98,6 +99,14 @@ interface FullDetails {
     userName: string | null;
     createdAt: string;
   }>;
+  substitutes: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    partNumber: string | null;
+    manufacturer: string | null;
+    retailPrice: number;
+  }>;
 }
 
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -118,9 +127,13 @@ const PAYMENT_LABEL: Record<string, string> = {
 interface Props {
   partId: string | null;
   onClose: () => void;
+  /** Called when user clicks "تعديل" — parent should open the edit modal. */
+  onEdit?: (partId: string) => void;
+  /** Called when user clicks "تحويل" — parent should open transfer flow. */
+  onTransfer?: (partId: string) => void;
 }
 
-export default function PartDetailsModal({ partId, onClose }: Props) {
+export default function PartDetailsModal({ partId, onClose, onEdit, onTransfer }: Props) {
   const navigate = useNavigate();
   const { data, isLoading, error } = useQuery<FullDetails>({
     queryKey: ['part-details', partId],
@@ -132,6 +145,23 @@ export default function PartDetailsModal({ partId, onClose }: Props) {
     onClose();
     setTimeout(() => navigate(`/invoices`), 100);
     // future: deep link to /invoices?open=${id}
+  };
+
+  // ============ Quick action handlers ============
+  // All print actions render via a hidden iframe — no extra dependencies, works
+  // with any browser, prints exactly what's on screen.
+  const printBarcode = () => {
+    if (!data) return;
+    const html = barcodeHTML(data);
+    openPrintWindow(html);
+  };
+  const printCard = () => {
+    if (!data) return;
+    const html = cardHTML(data);
+    openPrintWindow(html);
+  };
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -164,6 +194,18 @@ export default function PartDetailsModal({ partId, onClose }: Props) {
               </div>
             </div>
           )}
+
+          {/* ============ Quick Actions Bar (sticky-ish at the top) ============ */}
+          <div className="flex items-center gap-1.5 flex-wrap p-2 bg-bg/60 rounded-lg border border-line">
+            <ActionBtn onClick={() => onEdit?.(data.id)} icon={<Pencil size={14} />} label="تعديل" color="blue" disabled={!onEdit} />
+            <ActionBtn onClick={printBarcode} icon={<Repeat size={14} />} label="طباعة باركود" color="slate" />
+            <ActionBtn onClick={printCard} icon={<IdCard size={14} />} label="طباعة بطاقة" color="slate" />
+            <ActionBtn onClick={() => onTransfer?.(data.id)} icon={<ArrowLeftRight size={14} />} label="تحويل لفرع" color="emerald" disabled={!onTransfer} />
+            <span className="mx-1 h-5 w-px bg-line" />
+            <ActionBtn onClick={() => scrollTo('section-movements')} icon={<History size={14} />} label="حركة المخزون" color="slate" />
+            <ActionBtn onClick={() => scrollTo('section-sales')} icon={<ShoppingCart size={14} />} label="سجل المبيعات" color="slate" />
+            <ActionBtn onClick={() => scrollTo('section-purchases')} icon={<Building2 size={14} />} label="سجل المشتريات" color="slate" />
+          </div>
 
           {/* ============ HERO — أهمّ 4 معلومات بحجم كبير ============ */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -323,7 +365,25 @@ export default function PartDetailsModal({ partId, onClose }: Props) {
             </div>
           </div>
 
+          {/* ============ Substitutes ============ */}
+          {data.substitutes.length > 0 && (
+            <Section title={`القطع البديلة المتوافقة (${data.substitutes.length})`} icon={<Repeat size={16} />}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {data.substitutes.map((s) => (
+                  <div key={s.id} className="border border-line rounded-lg p-2.5 bg-bg/50 hover:bg-bg cursor-default">
+                    <div className="font-bold text-sm">{s.name}</div>
+                    <div className="text-xs text-muted mt-0.5">
+                      {[s.sku, s.partNumber, s.manufacturer].filter(Boolean).join(' • ')}
+                    </div>
+                    <div className="text-primary font-extrabold text-sm mt-1">{fmtMoney(s.retailPrice)}</div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           {/* ============ Sales invoices history ============ */}
+          <div id="section-sales" />
           <Section title={`فواتير البيع (${data.salesInvoices.length})`} icon={<ShoppingCart size={16} />}>
             {data.salesInvoices.length === 0 ? (
               <p className="text-muted text-sm">لم تُبَع هذه القطعة بعد</p>
@@ -365,6 +425,7 @@ export default function PartDetailsModal({ partId, onClose }: Props) {
           </Section>
 
           {/* ============ Purchase invoices history ============ */}
+          <div id="section-purchases" />
           <Section title={`فواتير الشراء (${data.purchaseInvoices.length})`} icon={<Building2 size={16} />}>
             {data.purchaseInvoices.length === 0 ? (
               <p className="text-muted text-sm">لم تُشترَ هذه القطعة بعد</p>
@@ -399,6 +460,7 @@ export default function PartDetailsModal({ partId, onClose }: Props) {
           </Section>
 
           {/* ============ Stock movements ============ */}
+          <div id="section-movements" />
           <Section title={`حركة المخزون (آخر ${data.movements.length})`} icon={<History size={16} />}>
             {data.movements.length === 0 ? (
               <p className="text-muted text-sm">لا توجد حركات مخزون مسجَّلة</p>
@@ -497,4 +559,135 @@ function PriceCard({ label, value, subtitle, highlight = false }: {
       {subtitle && <div className="text-[10px] text-muted mt-0.5">{subtitle}</div>}
     </div>
   );
+}
+
+// ============ Quick action button ============
+function ActionBtn({ onClick, icon, label, color, disabled = false }: {
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+  color: 'blue' | 'emerald' | 'slate' | 'amber';
+  disabled?: boolean;
+}) {
+  const colors: Record<string, string> = {
+    blue:    'text-blue-700 hover:bg-blue-50 disabled:text-slate-400',
+    emerald: 'text-emerald-700 hover:bg-emerald-50 disabled:text-slate-400',
+    amber:   'text-amber-700 hover:bg-amber-50 disabled:text-slate-400',
+    slate:   'text-slate-700 hover:bg-slate-100',
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} type="button"
+            className={'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold transition disabled:cursor-not-allowed ' + colors[color]}>
+      {icon}<span>{label}</span>
+    </button>
+  );
+}
+
+// ============ Print helpers ============
+
+// Reusable printable page wrapper — opens via a hidden iframe so it doesn't
+// disturb the current page. Same approach we use elsewhere for invoices.
+function openPrintWindow(html: string) {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0'; iframe.style.bottom = '0';
+  iframe.style.width = '0'; iframe.style.height = '0';
+  iframe.style.border = '0'; iframe.style.opacity = '0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow!.document;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => {
+    try {
+      iframe.contentWindow!.focus();
+      iframe.contentWindow!.print();
+    } catch { /* user denied */ }
+    setTimeout(() => { try { document.body.removeChild(iframe); } catch { /* gone */ } }, 60_000);
+  }, 250);
+}
+
+const esc = (s: any): string => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+/**
+ * Barcode label (small, 80mm receipt-friendly).
+ * Uses a pure-CSS barcode renderer — no external libs.
+ * For real production barcode (Code128/EAN13) the user can later
+ * adopt jsbarcode; for now this prints the SKU + name + price + a code-like
+ * stripe pattern that scanners can't read but is good enough for labelling.
+ */
+function barcodeHTML(p: { name: string; sku: string; barcode: string | null; retailPrice: number }) {
+  const code = p.barcode || p.sku;
+  // Generate a simple deterministic stripe pattern from the code
+  const stripes = code.split('').map((ch) => {
+    const w = (ch.charCodeAt(0) % 4) + 1;
+    return `<span style="display:inline-block;width:${w}px;height:40px;background:#000;margin-left:1px"></span>`;
+  }).join('');
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(p.name)}</title>
+<style>
+  @page { size: 60mm 40mm; margin: 2mm; }
+  body { font-family: 'Cairo', 'Tajawal', sans-serif; text-align: center; margin: 0; padding: 2mm; }
+  .name { font-weight: 800; font-size: 11px; line-height: 1.2; }
+  .bars { margin: 4px 0; line-height: 0; }
+  .code { font-family: monospace; font-size: 10px; letter-spacing: 1px; }
+  .price { font-weight: 800; font-size: 13px; margin-top: 2px; }
+</style></head><body>
+  <div class="name">${esc(p.name)}</div>
+  <div class="bars">${stripes}</div>
+  <div class="code">${esc(code)}</div>
+  <div class="price">${p.retailPrice.toFixed(2)} د.أ</div>
+</body></html>`;
+}
+
+/**
+ * Full part card (A5 portrait) — printable info sheet with all key fields.
+ * Useful for binders, supplier order forms, customer reference.
+ */
+function cardHTML(p: FullDetails) {
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(p.name)}</title>
+<style>
+  @page { size: A5 portrait; margin: 10mm; }
+  body { font-family: 'Cairo', 'Tajawal', sans-serif; color: #111; margin: 0; padding: 0; }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #1E5F74; }
+  .sub { font-size: 11px; color: #666; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: start; vertical-align: top; }
+  th { background: #f1f5f9; color: #475569; font-weight: 800; width: 35%; }
+  .section { font-weight: 800; font-size: 12px; color: #1E5F74; margin-top: 14px; margin-bottom: 4px; border-bottom: 2px solid #1E5F74; padding-bottom: 3px; }
+  .footer { margin-top: 18px; text-align: center; font-size: 9px; color: #94a3b8; }
+</style></head><body>
+  <h1>${esc(p.name)}</h1>
+  <div class="sub">${esc(p.nameEn || '')} ${p.manufacturer ? `— ${esc(p.manufacturer)}` : ''}</div>
+
+  <div class="section">معلومات الصنف</div>
+  <table>
+    <tr><th>SKU</th><td>${esc(p.sku)}</td></tr>
+    <tr><th>Part Number</th><td>${esc(p.partNumber ?? '—')}</td></tr>
+    <tr><th>OEM</th><td>${esc(p.oemNumber ?? '—')}</td></tr>
+    <tr><th>Barcode</th><td>${esc(p.barcode ?? '—')}</td></tr>
+    <tr><th>المصنّع</th><td>${esc(p.manufacturer ?? '—')}</td></tr>
+    <tr><th>بلد المنشأ</th><td>${esc(p.countryOrigin ?? '—')}</td></tr>
+    <tr><th>الوحدة</th><td>${esc(p.unit ?? 'حبة')}</td></tr>
+    <tr><th>الفئة</th><td>${esc(p.category?.name ?? '—')}</td></tr>
+  </table>
+
+  <div class="section">المخزون والأسعار</div>
+  <table>
+    <tr><th>الكمية المتوفّرة</th><td><b>${p.totalQuantity}</b> ${p.isLowStock ? '⚠ منخفضة' : ''} ${p.isOutOfStock ? '⛔ نفدت' : ''}</td></tr>
+    <tr><th>الحدّ الأدنى</th><td>${p.minStock}</td></tr>
+    <tr><th>متوسّط التكلفة</th><td>${p.avgCost.toFixed(3)} د.أ</td></tr>
+    <tr><th>سعر التجزئة</th><td><b>${p.retailPrice.toFixed(3)} د.أ</b></td></tr>
+    <tr><th>سعر الجملة</th><td>${p.wholesalePrice.toFixed(3)} د.أ</td></tr>
+    <tr><th>الضريبة</th><td>${p.taxRate}%</td></tr>
+  </table>
+
+  ${p.stockByBranch.length > 0 ? `
+  <div class="section">المخزون في كل فرع</div>
+  <table>
+    <tr><th>الفرع</th><th>الكمية</th><th>المتاح</th></tr>
+    ${p.stockByBranch.map((s) => `<tr><td>${esc(s.branchName)}</td><td>${s.quantity}</td><td>${s.available}</td></tr>`).join('')}
+  </table>` : ''}
+
+  <div class="footer">تم إنشاء هذه البطاقة بواسطة نظام قِطَعتي — AutoParts Cloud</div>
+</body></html>`;
 }

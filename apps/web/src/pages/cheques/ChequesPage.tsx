@@ -5,7 +5,7 @@ import {
   Plus, Search, AlertCircle, AlertTriangle, Pencil, Trash2, FileText,
   History, CheckCircle2, ArrowDownToLine, ArrowUpFromLine, Ban, XCircle,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useBranches } from '@/hooks/useBranches';
 import Modal from '@/components/ui/Modal';
 import { fmtMoney, fmtDate, errMsg } from '@/lib/format';
 import PrintBar from '@/components/print/PrintBar';
@@ -66,7 +66,8 @@ const emptyForm: ChequeForm = {
 
 export default function ChequesPage() {
   const qc = useQueryClient();
-  const branchesFromAuth = useAuth((s) => s.user?.branches ?? []);
+  // Live branches list (not the stale JWT snapshot) — see hooks/useBranches.ts
+  const branchesFromAuth = useBranches().data ?? [];
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [q, setQ]         = useState('');
   const [statusF, setF]   = useState<'all' | Status>('all');
