@@ -7,7 +7,7 @@ import {
   Package, Warehouse, ShoppingCart, TrendingUp, AlertTriangle,
   Calendar, Building2, History, ArrowUpRight, ArrowDownRight,
   ExternalLink, Tag, Boxes, Wrench,
-  Pencil, Printer, ArrowLeftRight, Repeat, IdCard,
+  Pencil, Printer, ArrowLeftRight, Repeat, FileText,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -199,7 +199,7 @@ export default function PartDetailsModal({ partId, onClose, onEdit, onTransfer }
           <div className="flex items-center gap-1.5 flex-wrap p-2 bg-bg/60 rounded-lg border border-line">
             <ActionBtn onClick={() => onEdit?.(data.id)} icon={<Pencil size={14} />} label="تعديل" color="blue" disabled={!onEdit} />
             <ActionBtn onClick={printBarcode} icon={<Repeat size={14} />} label="طباعة باركود" color="slate" />
-            <ActionBtn onClick={printCard} icon={<IdCard size={14} />} label="طباعة بطاقة" color="slate" />
+            <ActionBtn onClick={printCard} icon={<FileText size={14} />} label="طباعة بطاقة" color="slate" />
             <ActionBtn onClick={() => onTransfer?.(data.id)} icon={<ArrowLeftRight size={14} />} label="تحويل لفرع" color="emerald" disabled={!onTransfer} />
             <span className="mx-1 h-5 w-px bg-line" />
             <ActionBtn onClick={() => scrollTo('section-movements')} icon={<History size={14} />} label="حركة المخزون" color="slate" />
