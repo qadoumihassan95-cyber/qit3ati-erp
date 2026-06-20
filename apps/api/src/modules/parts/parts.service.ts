@@ -109,6 +109,244 @@ export class PartsService {
     return part;
   }
 
+  /**
+   * Aggregated 360° view of a single part — for the details modal.
+   * One endpoint = one network call from the UI = instant render.
+   * Returns:
+   *   - base info + image + status
+   *   - per-branch stock breakdown
+   *   - last purchase (price + supplier + date)
+   *   - last sale (date + customer + qty)
+   *   - lifetime totals (qty sold, revenue, cost, profit)
+   *   - last 20 sales invoices the part appeared in
+   *   - last 20 purchase invoices
+   *   - last 30 stock movements (chronological audit trail)
+   *   - low-stock alert flag
+   *
+   * Tenant-scoped at every join — no cross-tenant leakage.
+   */
+  async fullDetails(tenantId: string, id: string) {
+    // 1) The part itself + stock + last 1 image (avoid pulling all images here)
+    const part = await this.prisma.part.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: {
+        category: { select: { id: true, name: true } },
+        stocks:   {
+          include: {
+            branch:    { select: { id: true, name: true, code: true } },
+            warehouse: { select: { id: true, name: true } },
+          },
+        },
+        images: { take: 1, orderBy: { id: 'asc' } },
+      },
+    });
+    if (!part) throw new NotFoundException('القطعة غير موجودة');
+
+    // Run everything else in parallel — 7 independent queries
+    const [
+      lastPurchaseItem,
+      lastSaleItem,
+      salesTotals,
+      salesItems,
+      purchaseItems,
+      movements,
+      avgCostRow,
+    ] = await Promise.all([
+      // Last purchase line for this part (with supplier + date)
+      this.prisma.purchaseItem.findFirst({
+        where: { partId: id, invoice: { tenantId, deletedAt: null } },
+        include: {
+          invoice: {
+            select: {
+              id: true, invoiceNo: true, invoiceDate: true,
+              supplier: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { invoice: { invoiceDate: 'desc' } },
+      }),
+
+      // Last sale line
+      this.prisma.salesItem.findFirst({
+        where: { partId: id, invoice: { tenantId, deletedAt: null } },
+        include: {
+          invoice: {
+            select: {
+              id: true, invoiceNo: true, invoiceDate: true,
+              customer: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { invoice: { invoiceDate: 'desc' } },
+      }),
+
+      // Lifetime sold qty + revenue
+      this.prisma.salesItem.aggregate({
+        where: { partId: id, invoice: { tenantId, deletedAt: null } },
+        _sum: { qty: true, lineTotal: true },
+        _count: true,
+      }),
+
+      // Last 20 sales invoices (with customer + line qty/price)
+      this.prisma.salesItem.findMany({
+        where: { partId: id, invoice: { tenantId, deletedAt: null } },
+        include: {
+          invoice: {
+            select: {
+              id: true, invoiceNo: true, invoiceDate: true,
+              customer: { select: { id: true, name: true } },
+              paymentType: true,
+            },
+          },
+        },
+        orderBy: { invoice: { invoiceDate: 'desc' } },
+        take: 20,
+      }),
+
+      // Last 20 purchase invoices
+      this.prisma.purchaseItem.findMany({
+        where: { partId: id, invoice: { tenantId, deletedAt: null } },
+        include: {
+          invoice: {
+            select: {
+              id: true, invoiceNo: true, invoiceDate: true,
+              supplier: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { invoice: { invoiceDate: 'desc' } },
+        take: 20,
+      }),
+
+      // Last 30 stock movements (audit trail)
+      this.prisma.stockMovement.findMany({
+        where: { tenantId, partId: id },
+        include: {
+          branch: { select: { id: true, name: true } },
+          user:   { select: { id: true, fullName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      }),
+
+      // Average cost (for profit calc) — use part.avgCost if maintained,
+      // otherwise compute from purchase history. We use the stored avgCost.
+      this.prisma.part.findUnique({
+        where: { id }, select: { avgCost: true, costPrice: true },
+      }),
+    ]);
+
+    // ---- Derived calculations ----
+    const totalQuantity = part.stocks.reduce((s, st) => s + Number(st.quantity), 0);
+    const minStock      = Number(part.minStock);
+    const isLowStock    = totalQuantity > 0 && totalQuantity < minStock;
+    const isOutOfStock  = totalQuantity <= 0;
+
+    const totalSoldQty   = Number(salesTotals._sum.qty ?? 0);
+    const totalRevenue   = Number(salesTotals._sum.lineTotal ?? 0);
+    const avgCost        = Number(avgCostRow?.avgCost ?? avgCostRow?.costPrice ?? part.costPrice ?? 0);
+    const totalCost      = totalSoldQty * avgCost;
+    const totalProfit    = totalRevenue - totalCost;
+    const profitMargin   = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+    return {
+      // --- Identity ---
+      id:           part.id,
+      sku:          part.sku,
+      name:         part.name,
+      nameEn:       part.nameEn,
+      partNumber:   part.partNumber,
+      oemNumber:    part.oemNumber,
+      barcode:      part.barcode,
+      manufacturer: part.manufacturer,
+      countryOrigin: part.countryOrigin,
+      unit:         part.unit,
+      category:     part.category,
+      imageUrl:     part.images[0]?.url ?? null,
+
+      // --- Pricing ---
+      costPrice:      Number(part.costPrice),
+      avgCost:        avgCost,
+      retailPrice:    Number(part.retailPrice),
+      wholesalePrice: Number(part.wholesalePrice),
+      taxRate:        Number(part.taxRate),
+
+      // --- Stock ---
+      totalQuantity,
+      minStock,
+      isLowStock,
+      isOutOfStock,
+      status: isOutOfStock ? 'out' : isLowStock ? 'low' : 'available',
+      stockByBranch: part.stocks.map((s) => ({
+        branchId:    s.branchId,
+        branchName:  s.branch?.name ?? '—',
+        branchCode:  s.branch?.code ?? null,
+        warehouse:   s.warehouse?.name ?? null,
+        quantity:    Number(s.quantity),
+        reserved:    Number(s.reserved),
+        available:   Number(s.quantity) - Number(s.reserved),
+        location:    s.location,
+      })),
+
+      // --- Last transactions ---
+      lastPurchase: lastPurchaseItem ? {
+        invoiceId:    lastPurchaseItem.invoice.id,
+        invoiceNo:    lastPurchaseItem.invoice.invoiceNo,
+        invoiceDate:  lastPurchaseItem.invoice.invoiceDate,
+        supplier:     lastPurchaseItem.invoice.supplier,
+        qty:          Number(lastPurchaseItem.qty ?? 0),
+        unitCost:     Number(lastPurchaseItem.unitCost ?? 0),
+      } : null,
+      lastSale: lastSaleItem ? {
+        invoiceId:   lastSaleItem.invoice.id,
+        invoiceNo:   lastSaleItem.invoice.invoiceNo,
+        invoiceDate: lastSaleItem.invoice.invoiceDate,
+        customer:    lastSaleItem.invoice.customer,
+        qty:         Number(lastSaleItem.qty ?? 0),
+        unitPrice:   Number(lastSaleItem.unitPrice ?? 0),
+      } : null,
+
+      // --- Lifetime aggregates ---
+      totalSoldQty,
+      totalSalesCount: salesTotals._count,
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      profitMargin,   // percent
+
+      // --- Lists ---
+      salesInvoices: salesItems.map((it) => ({
+        invoiceId:   it.invoice.id,
+        invoiceNo:   it.invoice.invoiceNo,
+        invoiceDate: it.invoice.invoiceDate,
+        customer:    it.invoice.customer,
+        paymentType: it.invoice.paymentType,
+        qty:         Number(it.qty ?? 0),
+        unitPrice:   Number(it.unitPrice ?? 0),
+        lineTotal:   Number(it.lineTotal ?? 0),
+      })),
+      purchaseInvoices: purchaseItems.map((it) => ({
+        invoiceId:   it.invoice.id,
+        invoiceNo:   it.invoice.invoiceNo,
+        invoiceDate: it.invoice.invoiceDate,
+        supplier:    it.invoice.supplier,
+        qty:         Number(it.qty ?? 0),
+        unitCost:    Number(it.unitCost ?? 0),
+      })),
+      movements: movements.map((m) => ({
+        id:        m.id,
+        type:      m.type,
+        qtyChange: Number(m.qtyChange ?? 0),
+        unitCost:  Number(m.unitCost ?? 0),
+        refTable:  m.refTable,
+        refId:     m.refId,
+        branchName: m.branch?.name ?? null,
+        userName:  m.user?.fullName ?? null,
+        createdAt: m.createdAt,
+      })),
+    };
+  }
+
   async create(tenantId: string, userId: string, data: any) {
     // pre-check duplicate SKU within tenant (gives nicer error than raw P2002)
     if (data?.sku) {

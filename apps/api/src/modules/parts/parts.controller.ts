@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested, ArrayMaxSize } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PartsService } from './parts.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
@@ -33,6 +35,30 @@ class SearchDto {
   @IsOptional() @IsNumber() perPage?: number;
 }
 
+class ImportRowDto {
+  @IsOptional() sku?: any;
+  @IsOptional() name?: any;
+  @IsOptional() nameEn?: any;
+  @IsOptional() partNumber?: any;
+  @IsOptional() oemNumber?: any;
+  @IsOptional() barcode?: any;
+  @IsOptional() manufacturer?: any;
+  @IsOptional() countryOrigin?: any;
+  @IsOptional() unit?: any;
+  @IsOptional() costPrice?: any;
+  @IsOptional() retailPrice?: any;
+  @IsOptional() wholesalePrice?: any;
+  @IsOptional() minStock?: any;
+  @IsOptional() warrantyMonths?: any;
+  @IsOptional() taxRate?: any;
+}
+
+class ImportDto {
+  @IsArray() @ArrayMaxSize(5000) @ValidateNested({ each: true }) @Type(() => ImportRowDto)
+  rows!: ImportRowDto[];
+  @IsOptional() @IsBoolean() skipDuplicates?: boolean;
+}
+
 @Controller('parts')
 export class PartsController {
   constructor(private readonly parts: PartsService) {}
@@ -47,6 +73,17 @@ export class PartsController {
   @Permissions('parts.view')
   one(@Tenant() tenantId: string, @Param('id') id: string) {
     return this.parts.findOne(tenantId, id);
+  }
+
+  /**
+   * Aggregated 360° view for the part-details modal — one call returns
+   * stock, last sale/purchase, lifetime totals, sales/purchase history, and
+   * stock movements. Heavier than /:id so we expose it as a separate route.
+   */
+  @Get(':id/full-details')
+  @Permissions('parts.view')
+  fullDetails(@Tenant() tenantId: string, @Param('id') id: string) {
+    return this.parts.fullDetails(tenantId, id);
   }
 
   @Post()
@@ -65,5 +102,23 @@ export class PartsController {
   @Permissions('parts.delete')
   remove(@Tenant() tenantId: string, @Param('id') id: string) {
     return this.parts.softDelete(tenantId, id);
+  }
+
+  /**
+   * Bulk Excel/CSV import. Tightly rate-limited (3 imports/minute/IP) to prevent
+   * accidentally hammering the DB with 5000-row uploads in a tight loop.
+   */
+  @Post('import')
+  @HttpCode(200)
+  @Permissions('parts.create')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  bulkImport(
+    @Tenant() tenantId: string,
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ImportDto,
+  ) {
+    return this.parts.bulkImport(tenantId, user.sub, dto.rows as any[], {
+      skipDuplicates: dto.skipDuplicates ?? true,
+    });
   }
 }

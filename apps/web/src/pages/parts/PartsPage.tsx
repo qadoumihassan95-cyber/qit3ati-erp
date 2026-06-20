@@ -8,6 +8,7 @@ import { fmtMoney, errMsg } from '@/lib/format';
 import * as XLSX from 'xlsx';
 import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
+import PartDetailsModal from './PartDetailsModal';
 
 interface Part {
   id: string; sku: string; name: string; nameEn?: string | null;
@@ -142,6 +143,11 @@ export default function PartsPage() {
       setSaving(false);
     }
   };
+
+  // ---------- details modal (opens when user clicks a row) ----------
+  // Whole row is clickable. Action buttons (edit/delete) use stopPropagation
+  // so they don't trigger the details modal accidentally.
+  const [detailsPartId, setDetailsPartId] = useState<string | null>(null);
 
   // ---------- delete ----------
   const [delTarget, setDelTarget] = useState<Part | null>(null);
@@ -328,10 +334,15 @@ export default function PartsPage() {
           </button>
         </div>
 
-        <div className="text-xs text-muted mb-2">
-          العدد المعروض: <b>{items.length}</b>
-          {data && ` من إجمالي ${data.total}`}
-          {isFetching && ' • يحدّث...'}
+        <div className="text-xs text-muted mb-2 flex items-center justify-between flex-wrap gap-2">
+          <span>
+            العدد المعروض: <b>{items.length}</b>
+            {data && ` من إجمالي ${data.total}`}
+            {isFetching && ' • يحدّث...'}
+          </span>
+          <span className="text-primary/80">
+            💡 انقر على أيّ قطعة لعرض كل تفاصيلها (المخزون، المبيعات، الأرباح، الفواتير...)
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -355,7 +366,13 @@ export default function PartsPage() {
                 <tr><td className="p-8 text-center text-muted" colSpan={9}>لا نتائج مطابقة</td></tr>
               )}
               {items.map((p) => (
-                <tr key={p.id} className="border-b border-line hover:bg-slate-50">
+                <tr key={p.id}
+                    onClick={() => setDetailsPartId(p.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailsPartId(p.id); } }}
+                    title="انقر لعرض كل تفاصيل القطعة"
+                    className="border-b border-line hover:bg-primary/5 cursor-pointer transition focus:outline-none focus:bg-primary/10">
                   <td className="px-2.5 py-3">
                     <div className="font-bold">{p.name}</div>
                     {p.nameEn && <div className="text-xs text-muted">{p.nameEn}</div>}
@@ -372,7 +389,9 @@ export default function PartsPage() {
                       {p.status === 'out' ? 'نفدت' : p.status === 'low' ? 'منخفضة' : 'متوفرة'}
                     </span>
                   </td>
-                  <td className="px-2.5 py-3">
+                  <td className="px-2.5 py-3"
+                      onClick={(e) => e.stopPropagation()}>
+                    {/* stopPropagation so clicks on edit/delete don't also open the details modal */}
                     <div className="flex items-center gap-1">
                       <button onClick={() => openEdit(p)}
                               className="p-2 sm:p-1.5 rounded hover:bg-blue-50 text-blue-600" title="تعديل"
@@ -472,6 +491,9 @@ export default function PartsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* -------- Part 360° Details (opens when a row is clicked) -------- */}
+      <PartDetailsModal partId={detailsPartId} onClose={() => setDetailsPartId(null)} />
 
       {/* -------- Delete confirm -------- */}
       <Modal open={!!delTarget} onClose={() => !deleting && setDelTarget(null)} title="تأكيد الحذف" size="sm">
