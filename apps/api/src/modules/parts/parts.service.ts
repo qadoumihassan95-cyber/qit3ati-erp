@@ -319,7 +319,7 @@ export class PartsService {
 
       // --- Lifetime aggregates ---
       totalSoldQty,
-      totalSalesCount: salesTotals._count,
+      totalSalesCount: Number(salesTotals._count ?? 0),
       totalRevenue,
       totalCost,
       totalProfit,
