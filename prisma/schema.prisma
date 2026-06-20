@@ -1487,7 +1487,7 @@ model JofotaraConfig {
   /// Auto-submit every cash sale on creation. Credit sales are always queued.
   autoSendOnSale      Boolean             @default(false) @map("auto_send_on_sale")
   /// HTTP timeout per submission (ms).
-  timeoutMs           Int                 @default(15_000) @map("timeout_ms")
+  timeoutMs           Int                 @default(15000) @map("timeout_ms")
   /// Was at least one successful test connection performed?
   connectionVerifiedAt DateTime?          @map("connection_verified_at") @db.Timestamptz
   updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz

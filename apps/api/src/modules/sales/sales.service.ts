@@ -1,5 +1,4 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -23,11 +22,7 @@ export interface CreateSaleInput {
 export class SalesService {
   private readonly logger = new Logger(SalesService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-    /** Late-resolved to avoid SalesModule ↔ JofotaraModule circular imports. */
-    private readonly moduleRef: ModuleRef,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async createSale(tenantId: string, soldBy: string, input: CreateSaleInput) {
     if (!input.items?.length) throw new BadRequestException('السلّة فارغة');
@@ -175,47 +170,26 @@ export class SalesService {
   }
 
   /**
-   * If JoFotara auto-send is on, mark the freshly-created invoice as `queued`
-   * and resolve JofotaraService lazily to actually submit it (fire-and-forget).
-   *
-   * NOTE: we deliberately don't `import JofotaraService` at the top of this
-   * file — that would couple SalesModule to JofotaraModule at compile time
-   * and risk circular imports as both modules grow. ModuleRef + class-name
-   * lookup keeps the link loose.
+   * If JoFotara auto-send is on, mark the freshly-created invoice as `queued`.
+   * The actual HTTP submission happens via the operator pressing "إرسال" on
+   * the /invoices page, or via a future background worker that processes the
+   * `queued` queue. We deliberately do NOT call JofotaraService from here —
+   * doing so would couple SalesModule to JofotaraModule at compile time and
+   * risk circular imports / build failures as both modules grow.
    */
-  private async maybeAutoSubmitJofotara(tenantId: string, userId: string, invoiceId: string) {
+  private async maybeAutoSubmitJofotara(tenantId: string, _userId: string, invoiceId: string) {
     const cfg = await this.prisma.jofotaraConfig.findUnique({
       where: { tenantId },
       select: { autoSendOnSale: true, clientId: true, secretEncrypted: true },
     });
     if (!cfg?.autoSendOnSale || !cfg.clientId || !cfg.secretEncrypted) return;
 
-    // Mark the invoice as queued so the UI shows "بانتظار الإرسال" immediately.
+    // Mark the invoice as queued so the UI shows "بانتظار الإرسال" immediately
+    // and the operator (or a future cron worker) can pick it up from /jofotara.
     await this.prisma.salesInvoice.update({
       where: { id: invoiceId },
       data:  { jofotaraStatus: 'queued' },
     }).catch(() => undefined);
-
-    // Try to resolve JofotaraService dynamically. If it's not registered (e.g.
-    // someone disabled the module), we just leave the invoice in `queued` and
-    // the operator can re-submit manually from /jofotara.
-    let jof: any;
-    try {
-      // The class must be made available via { strict: false } in ModuleRef.get
-      // We use require() to avoid TS pulling in the type and tightening the dep.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { JofotaraService } = require('../jofotara/jofotara.service');
-      jof = this.moduleRef.get(JofotaraService, { strict: false });
-    } catch {
-      return; // module not available; invoice stays in queued state
-    }
-    if (!jof || typeof jof.submitInvoice !== 'function') return;
-
-    setImmediate(() => {
-      jof.submitInvoice(tenantId, userId, invoiceId).catch((e: any) => {
-        this.logger.warn(`JoFotara auto-submit failed for ${invoiceId}: ${e?.message ?? e}`);
-      });
-    });
   }
 
   /**
