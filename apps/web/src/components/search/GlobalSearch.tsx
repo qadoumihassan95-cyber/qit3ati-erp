@@ -90,8 +90,9 @@ export default function GlobalSearch() {
     if (!r) return;
     setOpen(false);
     setQ('');
-    // For now, navigate to the section page; later we can deep-link to the item modal
-    const base = r.url.split('#')[0];
+    // For now, navigate to the section page; later we can deep-link to the item modal.
+    // `split[0]` is `string | undefined` under noUncheckedIndexedAccess — fall back to r.url.
+    const base = r.url.split('#')[0] ?? r.url;
     navigate(base);
   };
 
