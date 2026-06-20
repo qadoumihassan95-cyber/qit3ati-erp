@@ -345,7 +345,7 @@ export class PartsService {
         unitCost:    Number(it.unitCost ?? 0),
       })),
       movements: movements.map((m) => ({
-        id:        m.id,
+        id:        m.id.toString(),
         type:      m.type,
         qtyChange: Number(m.qtyChange ?? 0),
         unitCost:  Number(m.unitCost ?? 0),
