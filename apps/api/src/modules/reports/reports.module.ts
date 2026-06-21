@@ -340,7 +340,7 @@ class ReportsService {
         total: true, paymentType: true, status: true,
         customer: { select: { id: true, name: true } },
         branch:   { select: { id: true, name: true } },
-        creator:  { select: { id: true, fullName: true } },
+        seller:   { select: { id: true, fullName: true } },
       },
     });
     return {
@@ -354,7 +354,7 @@ class ReportsService {
         customerId:  r.customer?.id ?? null,
         branch:      r.branch?.name ?? '—',
         branchId:    r.branch?.id ?? null,
-        user:        r.creator?.fullName ?? '—',
+        user:        r.seller?.fullName ?? '—',
         total:       n(r.total),
         paymentType: r.paymentType,
         status:      r.status,
