@@ -23,3 +23,41 @@ body { -webkit-font-smoothing: antialiased; }
   .input      { @apply w-full px-3 py-2.5 rounded-[10px] border border-line bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary; }
   .row-divide { @apply flex items-center justify-between py-3 border-b border-line last:border-0; }
 }
+
+/* ──────────────────────────────────────────────────────────────────
+ *  PRINT — when the user hits Cmd/Ctrl+P or browser print, isolate
+ *  only the report body. Buttons, sidebar, toolbars all disappear.
+ *  Most reports are printed via the PrintBar popup (lib/print.ts),
+ *  which renders an independent print-only HTML doc. This @media
+ *  block is a safety net for direct-print of the drawer.
+ * ─────────────────────────────────────────────────────────────── */
+@media print {
+  body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* hide global chrome: sidebar, page header, toolbars */
+  header, aside, nav, .no-print { display: none !important; }
+
+  /* the drawer becomes a full-page report container when printing */
+  .print-drawer {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  .print-drawer > div:first-child { display: none !important; } /* drawer top bar */
+  #print-area { padding: 0 !important; overflow: visible !important; }
+
+  /* card → simple boxes, no shadows */
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; border-radius: 4px !important; }
+
+  /* tables: avoid breaking rows across pages */
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  a { color: black !important; text-decoration: none !important; }
+}
+

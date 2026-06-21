@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { fmtMoney, fmtNum, fmtDate } from '@/lib/format';
+import { fmtMoney, fmtNum } from '@/lib/format';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
-import { TrendingUp, FileBarChart, Users, Building2, Package, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, Building2, Package, BarChart3, ChevronLeft } from 'lucide-react';
+import ReportDetailDrawer, { type DetailMode } from './ReportDetailDrawer';
 
 type Tab = 'pnl' | 'aging-customers' | 'aging-suppliers' | 'turnover' | 'profit-by-part';
 
@@ -23,12 +24,13 @@ export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>('pnl');
   const [from, setFrom] = useState(startOfMonth());
   const [to, setTo]     = useState(endOfDay());
+  const [drillMode, setDrillMode] = useState<DetailMode | null>(null);
 
   return (
     <div>
       <PageHeader
         title="التقارير المالية والمخزنية"
-        subtitle="تحليلات فورية لمساعدتك في اتخاذ قرارات أفضل"
+        subtitle="تحليلات فورية لمساعدتك في اتخاذ قرارات أفضل — انقر على أي بطاقة لرؤية التفاصيل الكاملة"
       />
 
       <div className="card mb-4">
@@ -55,42 +57,58 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {tab === 'pnl'              && <PnLReport from={from} to={to} />}
+      {tab === 'pnl'              && <PnLReport from={from} to={to} onDrill={setDrillMode} />}
       {tab === 'profit-by-part'   && <ProfitByPart from={from} to={to} />}
       {tab === 'turnover'         && <StockTurnover from={from} to={to} />}
       {tab === 'aging-customers'  && <CustomerAging />}
       {tab === 'aging-suppliers'  && <SupplierAging />}
+
+      <ReportDetailDrawer
+        open={!!drillMode}
+        mode={drillMode}
+        from={from}
+        to={to}
+        onClose={() => setDrillMode(null)}
+      />
     </div>
   );
 }
 
-function PnLReport({ from, to }: { from: string; to: string }) {
+function PnLReport({ from, to, onDrill }: { from: string; to: string; onDrill: (m: DetailMode) => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['report-pnl', from, to],
     queryFn: async () => (await api.get('/reports/pnl', { params: { from, to } })).data,
   });
   if (isLoading) return <p className="text-muted text-center py-10">جاري التحميل...</p>;
   if (!data) return null;
+  const netClass = Number(data.netProfit) >= 0 ? 'text-green-700' : 'text-red-700';
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard color="green" label="الإيراد" value={fmtMoney(data.revenue)} />
-        <KpiCard color="amber" label="تكلفة البضاعة" value={fmtMoney(data.cogs)} />
-        <KpiCard color="blue"  label="إجمالي الربح" value={fmtMoney(data.grossProfit)} sub={`هامش ${data.grossMargin}%`} />
-        <KpiCard color="red"   label="المصاريف" value={fmtMoney(data.expenses)} />
+        <ClickableKpi color="green" label="الإيراد"        value={fmtMoney(data.revenue)}     onClick={() => onDrill('revenue')} />
+        <ClickableKpi color="amber" label="تكلفة البضاعة"  value={fmtMoney(data.cogs)}        onClick={() => onDrill('cogs')} />
+        <ClickableKpi color="blue"  label="إجمالي الربح"   value={fmtMoney(data.grossProfit)} sub={`هامش ${data.grossMargin}%`} onClick={() => onDrill('profit')} />
+        <ClickableKpi color="red"   label="المصاريف"       value={fmtMoney(data.expenses)}    onClick={() => onDrill('expenses')} />
       </div>
-      <div className="card text-center py-6">
-        <div className="text-muted text-sm mb-1">صافي الربح للفترة</div>
-        <div className={'text-4xl font-extrabold ' + (Number(data.netProfit) >= 0 ? 'text-green-700' : 'text-red-700')}>
-          {fmtMoney(data.netProfit)}
+
+      <button
+        onClick={() => onDrill('net-profit')}
+        className="card w-full text-center py-6 group cursor-pointer transition hover:shadow-md active:scale-[0.99]"
+        type="button"
+      >
+        <div className="text-muted text-sm mb-1 group-hover:text-primary transition">
+          صافي الربح للفترة
+          <ChevronLeft size={14} className="inline mr-1 opacity-0 group-hover:opacity-100 transition" />
         </div>
+        <div className={'text-4xl font-extrabold ' + netClass}>{fmtMoney(data.netProfit)}</div>
         <div className="text-muted text-sm mt-1">هامش صافي {data.netMargin}%</div>
-      </div>
+      </button>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <DetailRow label="عدد الفواتير" value={fmtNum(data.salesCount)} />
-        <DetailRow label="إجمالي المرتجعات" value={fmtMoney(data.returns)} />
-        <DetailRow label="ضريبة محصّلة" value={fmtMoney(data.taxCollected)} />
-        <DetailRow label="إجمالي المشتريات" value={fmtMoney(data.purchasesTotal)} sub={`${data.purchasesCount} فاتورة`} />
+        <ClickableDetail label="عدد الفواتير"        value={fmtNum(data.salesCount)}                                       onClick={() => onDrill('invoices')} />
+        <ClickableDetail label="إجمالي المرتجعات"    value={fmtMoney(data.returns)}                                        onClick={() => onDrill('returns')} />
+        <ClickableDetail label="ضريبة محصّلة"        value={fmtMoney(data.taxCollected)}                                   onClick={() => onDrill('tax')} />
+        <ClickableDetail label="إجمالي المشتريات"    value={fmtMoney(data.purchasesTotal)} sub={`${data.purchasesCount} فاتورة`} onClick={() => onDrill('purchases')} />
       </div>
     </div>
   );
@@ -258,6 +276,7 @@ function SupplierAging() {
   );
 }
 
+/* ─── Static (non-clickable) KPI for aging tabs ─── */
 function KpiCard({ color, label, value, sub }: { color: 'green'|'blue'|'amber'|'red'; label: string; value: string; sub?: string }) {
   const tones: Record<string, string> = {
     green: 'border-r-4 border-green-500',
@@ -274,14 +293,54 @@ function KpiCard({ color, label, value, sub }: { color: 'green'|'blue'|'amber'|'
   );
 }
 
-function DetailRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/* ─── Clickable KPI (full button) for the PnL drill-down cards ─── */
+function ClickableKpi({
+  color, label, value, sub, onClick,
+}: { color: 'green'|'blue'|'amber'|'red'; label: string; value: string; sub?: string; onClick: () => void }) {
+  const tones: Record<string, string> = {
+    green: 'border-r-4 border-green-500',
+    blue:  'border-r-4 border-blue-500',
+    amber: 'border-r-4 border-amber-500',
+    red:   'border-r-4 border-red-500',
+  };
   return (
-    <div className="card flex justify-between items-center">
-      <span className="text-muted font-semibold">{label}</span>
+    <button
+      onClick={onClick}
+      type="button"
+      className={
+        'card text-right cursor-pointer transition group ' +
+        'hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ' +
+        tones[color]
+      }
+    >
+      <div className="flex items-center justify-between text-muted text-xs font-semibold">
+        <span>{label}</span>
+        <ChevronLeft size={14} className="opacity-0 group-hover:opacity-100 transition" />
+      </div>
+      <div className="text-xl sm:text-2xl font-extrabold mt-1">{value}</div>
+      {sub && <div className="text-xs text-muted mt-0.5">{sub}</div>}
+    </button>
+  );
+}
+
+/* ─── Clickable detail row ─── */
+function ClickableDetail({
+  label, value, sub, onClick,
+}: { label: string; value: string; sub?: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      className="card w-full flex justify-between items-center cursor-pointer transition group hover:shadow-md hover:bg-bg/40 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <span className="text-muted font-semibold flex items-center gap-1.5 group-hover:text-primary transition">
+        <ChevronLeft size={14} className="opacity-0 group-hover:opacity-100 transition" />
+        {label}
+      </span>
       <div className="text-right">
         <div className="font-extrabold">{value}</div>
         {sub && <div className="text-xs text-muted">{sub}</div>}
       </div>
-    </div>
+    </button>
   );
 }
