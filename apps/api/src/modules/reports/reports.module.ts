@@ -215,7 +215,7 @@ class ReportsService {
     const custMap = new Map<string, { name: string; revenue: number; cost: number }>();
     const brMap   = new Map<string, { name: string; revenue: number; cost: number }>();
     const invMap  = new Map<string, {
-      invoiceId: string; invoiceNo: string; date: Date | null;
+      invoiceId: string; invoiceNo: string | null; date: Date | null;
       customer: string; branch: string;
       revenue: number; cost: number;
     }>();
