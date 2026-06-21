@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -18,6 +19,11 @@ async function bootstrap() {
   // so request.ip / secure cookies work correctly.
   const httpAdapter = app.getHttpAdapter().getInstance();
   if (typeof httpAdapter?.set === 'function') httpAdapter.set('trust proxy', 1);
+
+  // Body parser: default 100kb is too small for image uploads (base64 data URLs).
+  // Raise to 8MB to cover part-image uploads while still rejecting abusive payloads.
+  app.use(json({ limit: '8mb' }));
+  app.use(urlencoded({ extended: true, limit: '8mb' }));
 
   app.setGlobalPrefix(prefix);
 

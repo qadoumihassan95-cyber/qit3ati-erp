@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
-import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Modal from '@/components/ui/Modal';
 import { fmtMoney, errMsg } from '@/lib/format';
@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
 import PartDetailsModal from './PartDetailsModal';
+import PartImagesEditor from './PartImagesEditor';
 
 interface Part {
   id: string; sku: string; name: string; nameEn?: string | null;
@@ -19,6 +20,7 @@ interface Part {
   quantity: number; minStock: number;
   warrantyMonths?: number; taxRate?: number;
   status: 'available' | 'low' | 'out';
+  imageUrl?: string | null;
 }
 
 interface PartForm {
@@ -349,6 +351,7 @@ export default function PartsPage() {
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="text-right text-muted text-xs font-bold border-b-2 border-line">
+                <th className="px-2 py-3 w-14">صورة</th>
                 <th className="px-2.5 py-3">الصنف</th>
                 <th className="px-2.5 py-3">SKU</th>
                 <th className="px-2.5 py-3">Part Number</th>
@@ -361,9 +364,9 @@ export default function PartsPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading && <tr><td className="p-8 text-center text-muted" colSpan={9}>جاري التحميل...</td></tr>}
+              {isLoading && <tr><td className="p-8 text-center text-muted" colSpan={10}>جاري التحميل...</td></tr>}
               {!isLoading && items.length === 0 && (
-                <tr><td className="p-8 text-center text-muted" colSpan={9}>لا نتائج مطابقة</td></tr>
+                <tr><td className="p-8 text-center text-muted" colSpan={10}>لا نتائج مطابقة</td></tr>
               )}
               {items.map((p) => (
                 <tr key={p.id}
@@ -373,6 +376,15 @@ export default function PartsPage() {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailsPartId(p.id); } }}
                     title="انقر لعرض كل تفاصيل القطعة"
                     className="border-b border-line hover:bg-primary/5 cursor-pointer transition focus:outline-none focus:bg-primary/10">
+                  <td className="px-2 py-2">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt="" loading="lazy" className="w-10 h-10 rounded object-cover border border-line" />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-bg border border-line flex items-center justify-center text-muted">
+                        <ImageIcon size={16} />
+                      </div>
+                    )}
+                  </td>
                   <td className="px-2.5 py-3">
                     <div className="font-bold">{p.name}</div>
                     {p.nameEn && <div className="text-xs text-muted">{p.nameEn}</div>}
@@ -483,6 +495,19 @@ export default function PartsPage() {
                      value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} />
             </Field>
           </div>
+
+          {/* ─── Part images ─── */}
+          <div className="mt-5 pt-4 border-t border-line">
+            <div className="flex items-center gap-2 mb-2">
+              <ImageIcon size={16} className="text-primary" />
+              <h3 className="font-bold text-sm">صور الصنف</h3>
+            </div>
+            <PartImagesEditor
+              partId={editing?.id ?? null}
+              onChange={() => qc.invalidateQueries({ queryKey: ['parts'] })}
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
             <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>إلغاء</button>
             <button type="submit" className="btn-primary" disabled={saving}>

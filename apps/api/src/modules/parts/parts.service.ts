@@ -61,6 +61,12 @@ export class PartsService {
           stocks: q.branchId
             ? { where: { branchId: q.branchId } }
             : true,
+          // pull the primary image (or, if none flagged, the first one) for the thumbnail
+          images: {
+            orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }],
+            take: 1,
+            select: { id: true, url: true, isPrimary: true },
+          },
         },
         orderBy: { name: 'asc' },
         skip: (page - 1) * perPage,
@@ -85,6 +91,7 @@ export class PartsService {
           retailPrice: Number(p.retailPrice), wholesalePrice: Number(p.wholesalePrice),
           minStock, warrantyMonths: p.warrantyMonths, taxRate: Number(p.taxRate),
           category: p.category, quantity: totalQty, status,
+          imageUrl: p.images[0]?.url ?? null,
         };
       }),
       page, perPage, total,
@@ -137,7 +144,7 @@ export class PartsService {
             warehouse: { select: { id: true, name: true } },
           },
         },
-        images: { take: 1, orderBy: { id: 'asc' } },
+        images: { orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }] },
         // Cross-part substitutes (e.g. اِستعمل هذه القطعة بدلاً من تلك)
         substitutesA: {
           include: {
@@ -274,6 +281,7 @@ export class PartsService {
       unit:         part.unit,
       category:     part.category,
       imageUrl:     part.images[0]?.url ?? null,
+      images:       part.images.map((i) => ({ id: i.id, url: i.url, isPrimary: i.isPrimary })),
 
       // --- Pricing ---
       costPrice:      Number(part.costPrice),
@@ -563,5 +571,104 @@ export class PartsService {
       failed:  failed.length,
       details: { created, skipped, failed },
     };
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  //  Images — managed independently of the main Part DTO
+  //  Storage: we accept either an http(s) URL or a base64 data URL.
+  //  Limit: 4 MB per image so the DB stays small.
+  // ──────────────────────────────────────────────────────────────────
+
+  async listImages(tenantId: string, partId: string) {
+    const part = await this.prisma.part.findFirst({
+      where: { id: partId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!part) throw new NotFoundException('القطعة غير موجودة');
+    return this.prisma.partImage.findMany({
+      where: { partId, tenantId },
+      orderBy: [{ isPrimary: 'desc' }, { id: 'asc' }],
+      select: { id: true, url: true, isPrimary: true },
+    });
+  }
+
+  async addImage(tenantId: string, partId: string, url: string, isPrimary = false) {
+    if (!url || typeof url !== 'string') {
+      throw new BadRequestException('رابط الصورة مطلوب');
+    }
+    // size guard: 4 MB max (base64 inflates ~33%, so cap at ~5.5MB string)
+    if (url.length > 5_500_000) {
+      throw new BadRequestException('حجم الصورة كبير جداً — الحد الأقصى 4 ميغابايت');
+    }
+    // only allow http(s) or image data URLs
+    if (!/^(https?:\/\/|data:image\/(png|jpe?g|webp|gif);base64,)/i.test(url)) {
+      throw new BadRequestException('صيغة الصورة غير مدعومة');
+    }
+    const part = await this.prisma.part.findFirst({
+      where: { id: partId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!part) throw new NotFoundException('القطعة غير موجودة');
+
+    return this.prisma.$transaction(async (tx) => {
+      // if this is set as primary, demote any existing primary
+      if (isPrimary) {
+        await tx.partImage.updateMany({
+          where: { tenantId, partId, isPrimary: true },
+          data:  { isPrimary: false },
+        });
+      } else {
+        // make it primary by default if it's the first image
+        const existing = await tx.partImage.count({ where: { tenantId, partId } });
+        if (existing === 0) isPrimary = true;
+      }
+      return tx.partImage.create({
+        data: { tenantId, partId, url, isPrimary },
+        select: { id: true, url: true, isPrimary: true },
+      });
+    });
+  }
+
+  async setImagePrimary(tenantId: string, partId: string, imageId: string) {
+    const img = await this.prisma.partImage.findFirst({
+      where: { id: imageId, partId, tenantId },
+      select: { id: true },
+    });
+    if (!img) throw new NotFoundException('الصورة غير موجودة');
+    await this.prisma.$transaction([
+      this.prisma.partImage.updateMany({
+        where: { tenantId, partId, isPrimary: true },
+        data:  { isPrimary: false },
+      }),
+      this.prisma.partImage.update({
+        where: { id: imageId },
+        data:  { isPrimary: true },
+      }),
+    ]);
+    return { ok: true };
+  }
+
+  async deleteImage(tenantId: string, partId: string, imageId: string) {
+    const img = await this.prisma.partImage.findFirst({
+      where: { id: imageId, partId, tenantId },
+      select: { id: true, isPrimary: true },
+    });
+    if (!img) throw new NotFoundException('الصورة غير موجودة');
+    await this.prisma.partImage.delete({ where: { id: imageId } });
+    // if we deleted the primary, promote the first remaining image
+    if (img.isPrimary) {
+      const next = await this.prisma.partImage.findFirst({
+        where: { tenantId, partId },
+        orderBy: { id: 'asc' },
+        select: { id: true },
+      });
+      if (next) {
+        await this.prisma.partImage.update({
+          where: { id: next.id },
+          data:  { isPrimary: true },
+        });
+      }
+    }
+    return { ok: true };
   }
 }

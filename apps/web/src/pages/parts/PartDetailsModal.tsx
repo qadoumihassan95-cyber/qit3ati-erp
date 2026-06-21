@@ -24,6 +24,7 @@ interface FullDetails {
   unit: string | null;
   category: { id: string; name: string } | null;
   imageUrl: string | null;
+  images?: Array<{ id: string; url: string; isPrimary: boolean }> | null;
 
   costPrice: number;
   avgCost: number;
@@ -238,7 +239,7 @@ export default function PartDetailsModal({ partId, onClose, onEdit, onTransfer }
             />
           </div>
 
-          {/* ============ Identity & Image ============ */}
+          {/* ============ Identity & Image Gallery ============ */}
           <div className="card p-4">
             <div className="flex items-start gap-4 flex-wrap">
               {data.imageUrl ? (
@@ -263,6 +264,25 @@ export default function PartDetailsModal({ partId, onClose, onEdit, onTransfer }
                 </div>
               </div>
             </div>
+
+            {/* ---- Full image gallery (shown only when > 1 image exists) ---- */}
+            {Array.isArray(data.images) && data.images.length > 1 && (
+              <div className="mt-3 pt-3 border-t border-line">
+                <div className="text-xs text-muted font-semibold mb-2">جميع الصور ({data.images.length})</div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
+                  {data.images.map((img) => (
+                    <a key={img.id} href={img.url} target="_blank" rel="noreferrer" title={img.isPrimary ? 'الصورة الأساسية' : 'صورة إضافية'}>
+                      <img
+                        src={img.url}
+                        alt=""
+                        loading="lazy"
+                        className={'w-full aspect-square object-cover rounded border ' + (img.isPrimary ? 'border-amber-500 ring-1 ring-amber-300' : 'border-line') + ' hover:opacity-80 transition cursor-zoom-in'}
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ============ Pricing ============ */}

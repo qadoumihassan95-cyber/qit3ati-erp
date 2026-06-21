@@ -59,6 +59,11 @@ class ImportDto {
   @IsOptional() @IsBoolean() skipDuplicates?: boolean;
 }
 
+class AddImageDto {
+  @IsString() @MinLength(1) @MaxLength(6_000_000) url!: string; // http(s) URL or data: URL
+  @IsOptional() @IsBoolean() isPrimary?: boolean;
+}
+
 @Controller('parts')
 export class PartsController {
   constructor(private readonly parts: PartsService) {}
@@ -120,5 +125,42 @@ export class PartsController {
     return this.parts.bulkImport(tenantId, user.sub, dto.rows as any[], {
       skipDuplicates: dto.skipDuplicates ?? true,
     });
+  }
+
+  // ─── Part images ───────────────────────────────────────────────
+  @Get(':id/images')
+  @Permissions('parts.view')
+  listImages(@Tenant() tenantId: string, @Param('id') id: string) {
+    return this.parts.listImages(tenantId, id);
+  }
+
+  @Post(':id/images')
+  @Permissions('parts.edit')
+  addImage(
+    @Tenant() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: AddImageDto,
+  ) {
+    return this.parts.addImage(tenantId, id, dto.url, dto.isPrimary ?? false);
+  }
+
+  @Put(':id/images/:imageId/primary')
+  @Permissions('parts.edit')
+  setImagePrimary(
+    @Tenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('imageId') imageId: string,
+  ) {
+    return this.parts.setImagePrimary(tenantId, id, imageId);
+  }
+
+  @Delete(':id/images/:imageId')
+  @Permissions('parts.edit')
+  deleteImage(
+    @Tenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('imageId') imageId: string,
+  ) {
+    return this.parts.deleteImage(tenantId, id, imageId);
   }
 }
