@@ -453,7 +453,12 @@ export class PartsService {
     tenantId: string,
     userId: string,
     rows: Array<Record<string, any>>,
-    opts: { skipDuplicates?: boolean } = {},
+    opts: {
+      skipDuplicates?: boolean;       // legacy flag — equivalent to mode='create-only' with skip
+      mode?: 'create-only' | 'update-existing' | 'upsert';
+      branchId?: string | null;       // if set + row has quantity, write Stock for that branch
+      autoCreateSuppliers?: boolean;  // create supplier records on the fly
+    } = {},
   ) {
     if (!Array.isArray(rows) || rows.length === 0) {
       throw new BadRequestException('لا توجد بيانات للاستيراد');
@@ -462,62 +467,61 @@ export class PartsService {
       throw new BadRequestException('الحدّ الأقصى 5000 صنف لكل عملية استيراد');
     }
 
-    // pre-load existing SKUs in this tenant to avoid 5000 SELECTs
+    const mode = opts.mode ?? (opts.skipDuplicates ? 'create-only' : 'create-only');
+
+    // ---- pre-load existing parts (full record so we can update if needed) ----
     const incomingSkus = Array.from(
       new Set(rows.map((r) => String(r?.sku ?? '').trim()).filter(Boolean)),
     );
-    const existing = await this.prisma.part.findMany({
+    const existingParts = await this.prisma.part.findMany({
       where: { tenantId, sku: { in: incomingSkus }, deletedAt: null },
-      select: { sku: true },
+      select: { id: true, sku: true },
     });
-    const existingSet = new Set(existing.map((p) => p.sku));
+    const existingMap = new Map(existingParts.map((p) => [p.sku, p.id]));
+
+    // ---- pre-load suppliers (by name, lowercased) ----
+    const incomingSupplierNames = Array.from(
+      new Set(rows.map((r) => String(r?.supplier ?? '').trim().toLowerCase()).filter(Boolean)),
+    );
+    const existingSuppliers = await this.prisma.supplier.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    const supplierByName = new Map(existingSuppliers.map((s) => [s.name.toLowerCase(), s.id]));
+
+    // ---- pre-load branches (and their first warehouse) ----
+    const branches = await this.prisma.branch.findMany({
+      where: { tenantId, deletedAt: null },
+      include: {
+        warehouses: { where: { deletedAt: null }, orderBy: { isMain: 'desc' }, take: 1 },
+      },
+    });
+    const branchById = new Map(branches.map((b) => [b.id, b]));
+    const branchByName = new Map(branches.map((b) => [b.name.toLowerCase(), b]));
 
     const created: Array<{ row: number; sku: string; name: string }> = [];
+    const updated: Array<{ row: number; sku: string; name: string }> = [];
     const skipped: Array<{ row: number; sku: string; reason: string }> = [];
     const failed:  Array<{ row: number; sku: string; reason: string }> = [];
     const seenSkusInBatch = new Set<string>();
 
-    // wrap everything in a single transaction so a mid-batch DB error doesn't
-    // leave the catalog half-populated
     await this.prisma.$transaction(async (tx) => {
       for (let i = 0; i < rows.length; i++) {
         const raw = rows[i] ?? {};
-        const rowNum = i + 2; // human-friendly row (excel header is row 1)
+        const rowNum = i + 2;
         const sku = String(raw.sku ?? '').trim();
         const name = String(raw.name ?? '').trim();
 
-        if (!sku) {
-          failed.push({ row: rowNum, sku: '', reason: 'SKU فارغ' });
-          continue;
-        }
-        if (!name) {
-          failed.push({ row: rowNum, sku, reason: 'اسم الصنف فارغ' });
-          continue;
-        }
-        if (sku.length > 60) {
-          failed.push({ row: rowNum, sku, reason: 'SKU أطول من 60 حرفاً' });
-          continue;
-        }
-        if (name.length > 200) {
-          failed.push({ row: rowNum, sku, reason: 'اسم الصنف أطول من 200 حرف' });
-          continue;
-        }
-        if (seenSkusInBatch.has(sku)) {
-          failed.push({ row: rowNum, sku, reason: 'SKU مكرّر داخل الملف نفسه' });
-          continue;
-        }
+        if (!sku) { failed.push({ row: rowNum, sku: '',  reason: 'SKU فارغ' });           continue; }
+        if (!name && mode !== 'update-existing') { failed.push({ row: rowNum, sku, reason: 'اسم الصنف فارغ' }); continue; }
+        if (sku.length > 60)    { failed.push({ row: rowNum, sku, reason: 'SKU أطول من 60 حرفاً' });  continue; }
+        if (name.length > 200)  { failed.push({ row: rowNum, sku, reason: 'الاسم أطول من 200 حرف' }); continue; }
+        if (seenSkusInBatch.has(sku)) { failed.push({ row: rowNum, sku, reason: 'SKU مكرّر داخل الملف' }); continue; }
         seenSkusInBatch.add(sku);
 
-        if (existingSet.has(sku)) {
-          if (opts.skipDuplicates) {
-            skipped.push({ row: rowNum, sku, reason: 'موجود مسبقاً (تم التخطّي)' });
-            continue;
-          }
-          failed.push({ row: rowNum, sku, reason: 'SKU موجود مسبقاً' });
-          continue;
-        }
+        const existingPartId = existingMap.get(sku);
 
-        // coerce numerics safely; reject negatives
+        // ---- numeric coercion ----
         const num = (v: any): number | undefined => {
           if (v === undefined || v === null || v === '') return undefined;
           const n = Number(v);
@@ -530,46 +534,120 @@ export class PartsService {
         const minStock = num(raw.minStock);
         const warranty = num(raw.warrantyMonths);
         const taxRate  = num(raw.taxRate);
+        const quantity = num(raw.quantity);
 
-        if ([cost, retail, whole, minStock, warranty, taxRate].some((n) => n !== undefined && n < 0)) {
+        if ([cost, retail, whole, minStock, warranty, taxRate, quantity].some((n) => n !== undefined && n < 0)) {
           failed.push({ row: rowNum, sku, reason: 'قيم رقمية سالبة غير مسموحة' });
           continue;
         }
 
+        // ---- supplier resolution (optional) ----
+        let supplierId: string | undefined;
+        const supplierName = String(raw.supplier ?? '').trim();
+        if (supplierName) {
+          supplierId = supplierByName.get(supplierName.toLowerCase());
+          if (!supplierId) {
+            if (opts.autoCreateSuppliers) {
+              const sup = await tx.supplier.create({
+                data: { tenantId, name: supplierName.slice(0, 200) },
+                select: { id: true, name: true },
+              });
+              supplierByName.set(sup.name.toLowerCase(), sup.id);
+              supplierId = sup.id;
+            } else {
+              // not failing the row; supplier is informational on import
+            }
+          }
+        }
+
+        // ---- branch resolution ----
+        let targetBranch = opts.branchId ? branchById.get(opts.branchId) : undefined;
+        const rowBranchName = String(raw.branch ?? '').trim();
+        if (rowBranchName) {
+          const found = branchByName.get(rowBranchName.toLowerCase());
+          if (found) targetBranch = found;
+          else { failed.push({ row: rowNum, sku, reason: `الفرع "${rowBranchName}" غير موجود` }); continue; }
+        }
+
+        const partData: any = {
+          sku, name: name || undefined,
+          nameEn:        raw.nameEn        ? String(raw.nameEn).slice(0, 200)         : undefined,
+          partNumber:    raw.partNumber    ? String(raw.partNumber).slice(0, 80)      : undefined,
+          oemNumber:     raw.oemNumber     ? String(raw.oemNumber).slice(0, 80)       : undefined,
+          barcode:       raw.barcode       ? String(raw.barcode).slice(0, 80)         : undefined,
+          manufacturer:  raw.manufacturer  ? String(raw.manufacturer).slice(0, 120)   : undefined,
+          countryOrigin: raw.countryOrigin ? String(raw.countryOrigin).slice(0, 80)   : undefined,
+          unit:          raw.unit          ? String(raw.unit).slice(0, 20)            : undefined,
+          ...(cost     !== undefined ? { costPrice:      cost }     : {}),
+          ...(retail   !== undefined ? { retailPrice:    retail }   : {}),
+          ...(whole    !== undefined ? { wholesalePrice: whole }    : {}),
+          ...(minStock !== undefined ? { minStock:       minStock } : {}),
+          ...(warranty !== undefined ? { warrantyMonths: warranty } : {}),
+          ...(taxRate  !== undefined ? { taxRate:        taxRate }  : {}),
+        };
+
         try {
-          await tx.part.create({
-            data: {
-              tenantId, createdBy: userId,
-              sku, name,
-              nameEn:        raw.nameEn ? String(raw.nameEn).slice(0, 200) : undefined,
-              partNumber:    raw.partNumber ? String(raw.partNumber).slice(0, 100) : undefined,
-              oemNumber:     raw.oemNumber ? String(raw.oemNumber).slice(0, 100) : undefined,
-              barcode:       raw.barcode ? String(raw.barcode).slice(0, 80) : undefined,
-              manufacturer:  raw.manufacturer ? String(raw.manufacturer).slice(0, 80) : undefined,
-              countryOrigin: raw.countryOrigin ? String(raw.countryOrigin).slice(0, 80) : undefined,
-              unit:          raw.unit ? String(raw.unit).slice(0, 20) : undefined,
-              costPrice:      cost     ?? 0,
-              retailPrice:    retail   ?? 0,
-              wholesalePrice: whole    ?? 0,
-              minStock:       minStock ?? 0,
-              warrantyMonths: warranty ?? 0,
-              taxRate:        taxRate  ?? 16,
-            },
-          });
-          created.push({ row: rowNum, sku, name });
-          existingSet.add(sku); // protect against later dup within same batch
+          let partId: string;
+
+          if (existingPartId) {
+            // EXISTING SKU
+            if (mode === 'create-only') {
+              skipped.push({ row: rowNum, sku, reason: 'موجود مسبقاً (تم التخطّي)' });
+              continue;
+            }
+            // update existing
+            await tx.part.update({ where: { id: existingPartId }, data: partData });
+            partId = existingPartId;
+            updated.push({ row: rowNum, sku, name });
+          } else {
+            // NEW SKU
+            if (mode === 'update-existing') {
+              skipped.push({ row: rowNum, sku, reason: 'غير موجود — تم التخطّي (وضع التحديث فقط)' });
+              continue;
+            }
+            if (!name) { failed.push({ row: rowNum, sku, reason: 'اسم الصنف مطلوب للأصناف الجديدة' }); continue; }
+            const np = await tx.part.create({
+              data: { ...partData, tenantId, createdBy: userId },
+              select: { id: true },
+            });
+            partId = np.id;
+            existingMap.set(sku, partId);
+            created.push({ row: rowNum, sku, name });
+          }
+
+          // ---- stock placement (optional) ----
+          if (quantity !== undefined && quantity > 0 && targetBranch) {
+            const warehouse = targetBranch.warehouses[0];
+            if (!warehouse) {
+              skipped.push({ row: rowNum, sku, reason: `تم حفظ الصنف لكن لا يوجد مستودع في فرع ${targetBranch.name}` });
+            } else {
+              // unique key on Stock is (tenantId, warehouseId, partId)
+              const exist = await tx.stock.findFirst({
+                where: { tenantId, partId, warehouseId: warehouse.id },
+                select: { id: true },
+              });
+              if (exist) {
+                await tx.stock.update({ where: { id: exist.id }, data: { quantity } });
+              } else {
+                await tx.stock.create({
+                  data: { tenantId, branchId: targetBranch.id, warehouseId: warehouse.id, partId, quantity },
+                });
+              }
+            }
+          }
         } catch (e: any) {
           failed.push({ row: rowNum, sku, reason: e?.message ?? 'خطأ غير معروف' });
         }
       }
-    }, { timeout: 60_000 });
+    }, { timeout: 90_000 });
 
     return {
       total: rows.length,
       created: created.length,
+      updated: updated.length,
       skipped: skipped.length,
       failed:  failed.length,
-      details: { created, skipped, failed },
+      details: { created, updated, skipped, failed },
     };
   }
 

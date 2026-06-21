@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,7 @@ import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
 import PartDetailsModal from './PartDetailsModal';
 import PartImagesEditor from './PartImagesEditor';
+import PartsImportWizard from './PartsImportWizard';
 
 interface Part {
   id: string; sku: string; name: string; nameEn?: string | null;
@@ -169,7 +170,10 @@ export default function PartsPage() {
     }
   };
 
-  // ---------- excel import ----------
+  // ---------- new wizard ----------
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  // ---------- legacy excel import (kept for backwards compatibility, unused via UI) ----------
   const [importOpen, setImportOpen]   = useState(false);
   const [importRows, setImportRows]   = useState<any[]>([]);
   const [importFile, setImportFile]   = useState<string>('');
@@ -331,9 +335,10 @@ export default function PartsPage() {
           <button className="btn-primary" onClick={openCreate}>
             <Plus size={16} /> صنف جديد
           </button>
-          <button className="btn-ghost" onClick={openImport}>
-            <FileUp size={16} /> استيراد Excel
+          <button className="btn-ghost" onClick={() => setWizardOpen(true)}>
+            <FileUp size={16} /> استيراد متطوّر
           </button>
+          <ExportMenu items={items} allItems={allItems} totalCount={data?.total ?? 0} />
         </div>
 
         <div className="text-xs text-muted mb-2 flex items-center justify-between flex-wrap gap-2">
@@ -641,8 +646,131 @@ export default function PartsPage() {
           )}
         </div>
       </Modal>
+
+      {/* -------- New Import Wizard (5 steps) -------- */}
+      <PartsImportWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onDone={() => qc.invalidateQueries({ queryKey: ['parts'] })}
+      />
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  Export dropdown — 3 modes
+// ─────────────────────────────────────────────────────────────────────
+function ExportMenu({ items, allItems, totalCount }: { items: Part[]; allItems: Part[]; totalCount: number }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const exportRows = (rows: Part[], format: 'xlsx' | 'csv', filename: string) => {
+    const data = rows.map((p) => ({
+      sku: p.sku, name: p.name, nameEn: p.nameEn ?? '',
+      partNumber: p.partNumber ?? '', oemNumber: p.oemNumber ?? '', barcode: p.barcode ?? '',
+      manufacturer: p.manufacturer ?? '', countryOrigin: p.countryOrigin ?? '', unit: p.unit ?? '',
+      costPrice: p.costPrice ?? 0, retailPrice: p.retailPrice, wholesalePrice: p.wholesalePrice ?? 0,
+      minStock: p.minStock, warrantyMonths: p.warrantyMonths ?? 0, taxRate: p.taxRate ?? 16,
+      quantity: p.quantity,
+    }));
+    if (format === 'csv') {
+      const headers = Object.keys(data[0] ?? { sku: '' });
+      const lines = [
+        headers.join(','),
+        ...data.map((row) => headers.map((h) => {
+          const v = String((row as any)[h] ?? '');
+          return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+        }).join(',')),
+      ];
+      const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      triggerDl(blob, `${filename}.csv`);
+    } else {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Parts');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      triggerDl(new Blob([buf], { type: 'application/octet-stream' }), `${filename}.xlsx`);
+    }
+    setOpen(false);
+  };
+
+  const exportEmptyTemplate = () => {
+    const headers = ['sku','name','nameEn','partNumber','oemNumber','barcode','manufacturer','countryOrigin','unit','costPrice','retailPrice','wholesalePrice','minStock','warrantyMonths','taxRate','supplier','branch','quantity','notes'];
+    const ws = XLSX.utils.aoa_to_sheet([headers, []]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    triggerDl(new Blob([buf], { type: 'application/octet-stream' }), 'parts-template-empty.xlsx');
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button className="btn-ghost" onClick={() => setOpen((v) => !v)}>
+        <Download size={16} /> تصدير
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 left-0 sm:right-0 sm:left-auto w-72 bg-white rounded-xl shadow-xl border border-line p-1.5 text-sm">
+          <MenuItem
+            title="تصدير المعروض (Excel)"
+            sub={`${items.length} صف — يحترم الفلتر والبحث الحالي`}
+            onClick={() => exportRows(items, 'xlsx', `parts-filtered-${new Date().toISOString().slice(0,10)}`)}
+          />
+          <MenuItem
+            title="تصدير المعروض (CSV)"
+            sub={`${items.length} صف`}
+            onClick={() => exportRows(items, 'csv', `parts-filtered-${new Date().toISOString().slice(0,10)}`)}
+          />
+          <div className="h-px bg-line my-1" />
+          <MenuItem
+            title="تصدير كل الأصناف (Excel)"
+            sub={`${allItems.length} من إجمالي ${totalCount}`}
+            onClick={() => exportRows(allItems, 'xlsx', `parts-all-${new Date().toISOString().slice(0,10)}`)}
+          />
+          <MenuItem
+            title="تصدير كل الأصناف (CSV)"
+            sub={`${allItems.length} من إجمالي ${totalCount}`}
+            onClick={() => exportRows(allItems, 'csv', `parts-all-${new Date().toISOString().slice(0,10)}`)}
+          />
+          <div className="h-px bg-line my-1" />
+          <MenuItem
+            title="📋 قالب فارغ للاستيراد"
+            sub="ملف Excel جاهز للتعبئة"
+            onClick={exportEmptyTemplate}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ title, sub, onClick }: { title: string; sub: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+            className="w-full text-right p-2 rounded-lg hover:bg-bg transition flex flex-col items-end">
+      <span className="font-bold">{title}</span>
+      <span className="text-xs text-muted">{sub}</span>
+    </button>
+  );
+}
+
+function triggerDl(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // --- small presentational helpers ---

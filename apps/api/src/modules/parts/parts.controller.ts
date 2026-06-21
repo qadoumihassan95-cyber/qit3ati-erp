@@ -51,12 +51,20 @@ class ImportRowDto {
   @IsOptional() minStock?: any;
   @IsOptional() warrantyMonths?: any;
   @IsOptional() taxRate?: any;
+  // wizard extras
+  @IsOptional() supplier?: any;
+  @IsOptional() branch?: any;
+  @IsOptional() quantity?: any;
+  @IsOptional() notes?: any;
 }
 
 class ImportDto {
   @IsArray() @ArrayMaxSize(5000) @ValidateNested({ each: true }) @Type(() => ImportRowDto)
   rows!: ImportRowDto[];
   @IsOptional() @IsBoolean() skipDuplicates?: boolean;
+  @IsOptional() @IsString() mode?: 'create-only' | 'update-existing' | 'upsert';
+  @IsOptional() @IsString() branchId?: string;
+  @IsOptional() @IsBoolean() autoCreateSuppliers?: boolean;
 }
 
 class AddImageDto {
@@ -123,7 +131,10 @@ export class PartsController {
     @Body() dto: ImportDto,
   ) {
     return this.parts.bulkImport(tenantId, user.sub, dto.rows as any[], {
-      skipDuplicates: dto.skipDuplicates ?? true,
+      skipDuplicates:      dto.skipDuplicates ?? true,
+      mode:                dto.mode,
+      branchId:            dto.branchId ?? null,
+      autoCreateSuppliers: dto.autoCreateSuppliers ?? false,
     });
   }
 
