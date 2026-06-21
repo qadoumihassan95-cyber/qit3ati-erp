@@ -196,8 +196,6 @@ export default function PartsImportWizard({ open, onClose, onDone }: Props) {
     }
   }, [open]);
 
-  if (!open) return null;
-
   // ──────── Step 1: file pick / parse ────────
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -265,6 +263,9 @@ export default function PartsImportWizard({ open, onClose, onDone }: Props) {
     const errorCount = issues.filter((x) => x.errs.length > 0).length;
     return { issues, errorCount };
   }, [mappedRows, branches, mode]);
+
+  // Early return AFTER all hooks (Rules of Hooks)
+  if (!open) return null;
 
   // ──────── Submit ────────
   const doImport = async () => {
