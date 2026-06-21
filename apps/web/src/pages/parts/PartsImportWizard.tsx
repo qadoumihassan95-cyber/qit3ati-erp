@@ -127,7 +127,7 @@ function downloadTemplate(kind: 'full' | 'simple' | 'csv') {
   };
   const row: Record<string, any> = {};
   for (const h of headers[kind]) row[h] = example[h];
-  const ws = XLSX.utils.json_to_sheet([row], { header: headers[kind] });
+  const ws = (XLSX.utils.json_to_sheet as any)([row], { header: headers[kind] });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Template');
   const buf = (XLSX as any).write(wb, { bookType: 'xlsx', type: 'array' });
