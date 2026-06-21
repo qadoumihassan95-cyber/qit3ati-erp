@@ -275,7 +275,7 @@ export default function PartsPage() {
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'parts');
-    XLSX.writeFile(wb, 'parts-template.xlsx');
+    (XLSX as any).writeFile(wb, 'parts-template.xlsx');
   };
 
   // ---------- render ----------
@@ -698,7 +698,7 @@ function ExportMenu({ items, allItems, totalCount }: { items: Part[]; allItems: 
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Parts');
-      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const buf = (XLSX as any).write(wb, { bookType: 'xlsx', type: 'array' });
       triggerDl(new Blob([buf], { type: 'application/octet-stream' }), `${filename}.xlsx`);
     }
     setOpen(false);
@@ -709,7 +709,7 @@ function ExportMenu({ items, allItems, totalCount }: { items: Part[]; allItems: 
     const ws = XLSX.utils.aoa_to_sheet([headers, []]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const buf = (XLSX as any).write(wb, { bookType: 'xlsx', type: 'array' });
     triggerDl(new Blob([buf], { type: 'application/octet-stream' }), 'parts-template-empty.xlsx');
     setOpen(false);
   };

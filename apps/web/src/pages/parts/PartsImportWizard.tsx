@@ -130,7 +130,7 @@ function downloadTemplate(kind: 'full' | 'simple' | 'csv') {
   const ws = XLSX.utils.json_to_sheet([row], { header: headers[kind] });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Template');
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const buf = (XLSX as any).write(wb, { bookType: 'xlsx', type: 'array' });
   triggerDownload(new Blob([buf], { type: 'application/octet-stream' }),
     kind === 'full' ? 'parts-template-full.xlsx' : 'parts-template-simple.xlsx');
 }
@@ -206,7 +206,7 @@ export default function PartsImportWizard({ open, onClose, onDone }: Props) {
     setFileName(f.name);
     try {
       const buf = await f.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array', codepage: 65001 /* utf-8 */ });
+      const wb = XLSX.read(buf, { type: 'array' });
       const sheetName = wb.SheetNames[0];
       if (!sheetName) { setErr('الملف فارغ — لا توجد أوراق'); return; }
       const ws = wb.Sheets[sheetName]!;
@@ -294,7 +294,7 @@ export default function PartsImportWizard({ open, onClose, onDone }: Props) {
     const ws = XLSX.utils.json_to_sheet(failed);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Errors');
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const buf = (XLSX as any).write(wb, { bookType: 'xlsx', type: 'array' });
     triggerDownload(new Blob([buf], { type: 'application/octet-stream' }), 'import-errors.xlsx');
   };
 
