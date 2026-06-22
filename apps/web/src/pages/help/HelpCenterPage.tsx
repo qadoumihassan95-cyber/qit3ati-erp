@@ -18,7 +18,7 @@ import {
   Search, BookOpen, Video, MessageCircle, HelpCircle, ChevronDown,
   LayoutDashboard, Wrench, ShoppingCart, Users, Building2, Truck,
   Receipt, FileBarChart, Building, Settings as SettingsIcon,
-  Shield, Database,
+  Shield, Database, X, Play,
 } from 'lucide-react';
 
 interface FAQ { q: string; a: string; }
@@ -28,6 +28,16 @@ interface GuideTopic {
   title: string;
   blurb: string;
   bullets: string[];
+}
+interface VideoItem {
+  title: string;
+  duration: string;
+  /** YouTube video ID (the part after `v=` in the URL). Empty = placeholder. */
+  youtubeId?: string;
+  /** Vimeo ID alternative. */
+  vimeoId?: string;
+  /** Cover thumbnail URL — falls back to YouTube auto-thumbnail when youtubeId set. */
+  cover?: string;
 }
 
 const FAQS: FAQ[] = [
@@ -84,19 +94,31 @@ const GUIDE: GuideTopic[] = [
     bullets: ['بيانات الشركة: اسم، شعار، عنوان، رقم ضريبي', 'الهوية البصرية: لون أساسي + لون مميّز (white-label)', 'إعدادات الطباعة: A4/A5/80mm/58mm', 'اللغة الافتراضية + العملة + الضريبة العامة', 'النسخ الاحتياطي اليومي التلقائي'] },
 ];
 
-const VIDEOS = [
-  { title: 'البدء السريع — 5 دقائق',        duration: '5:23' },
-  { title: 'إصدار فاتورتك الأولى',           duration: '3:48' },
-  { title: 'استيراد الأصناف من Excel',         duration: '7:12' },
-  { title: 'إعداد JoFotara خطوة بخطوة',      duration: '6:30' },
-  { title: 'تحويل بين فروع بشكل احترافي',     duration: '4:15' },
-  { title: 'قراءة التقارير المالية',           duration: '8:50' },
+/**
+ * Tutorial videos. To publish:
+ *   1. Record the screencast (see Marketing-Sales/VIDEO_PRODUCTION_GUIDE.md).
+ *   2. Upload to YouTube — set visibility to "Unlisted" if you want it
+ *      private to your team, or "Public" for marketing reach.
+ *   3. Copy the 11-character video ID from the URL (the part after `v=`)
+ *      and paste it as `youtubeId` below.
+ *   4. The cover image and runtime are pulled automatically from YouTube.
+ *
+ * Empty youtubeId === placeholder (shows "Coming soon").
+ */
+const VIDEOS: VideoItem[] = [
+  { title: 'البدء السريع — 5 دقائق',      duration: '5:23', youtubeId: '' },
+  { title: 'إصدار فاتورتك الأولى',         duration: '3:48', youtubeId: '' },
+  { title: 'استيراد الأصناف من Excel',       duration: '7:12', youtubeId: '' },
+  { title: 'إعداد JoFotara خطوة بخطوة',    duration: '6:30', youtubeId: '' },
+  { title: 'تحويل بين فروع بشكل احترافي',   duration: '4:15', youtubeId: '' },
+  { title: 'قراءة التقارير المالية',         duration: '8:50', youtubeId: '' },
 ];
 
 export default function HelpCenterPage() {
   const [q, setQ] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeGuide, setActiveGuide] = useState<string>('dashboard');
+  const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null);
 
   const filteredFaqs = useMemo(() => {
     if (!q.trim()) return FAQS;
@@ -215,22 +237,88 @@ export default function HelpCenterPage() {
           <Video size={20} className="text-primary" /> الفيديوهات التعليمية
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {VIDEOS.map((v, i) => (
-            <div key={i} className="border border-line rounded-xl overflow-hidden hover:shadow-md transition cursor-pointer">
-              <div className="aspect-video bg-gradient-to-br from-bg to-line grid place-items-center text-muted">
-                <Video size={32} />
-              </div>
-              <div className="p-3">
-                <h4 className="font-bold text-sm mb-1">{v.title}</h4>
-                <p className="text-xs text-muted">{v.duration}</p>
-              </div>
-            </div>
-          ))}
+          {VIDEOS.map((v, i) => {
+            const isReady = Boolean(v.youtubeId || v.vimeoId);
+            const cover = v.cover ?? (v.youtubeId ? `https://img.youtube.com/vi/${v.youtubeId}/maxresdefault.jpg` : null);
+            return (
+              <button
+                key={i}
+                disabled={!isReady}
+                onClick={() => isReady && setPlayingVideo(v)}
+                className={
+                  'border border-line rounded-xl overflow-hidden transition text-right ' +
+                  (isReady ? 'hover:shadow-md hover:scale-[1.01] cursor-pointer' : 'opacity-60 cursor-not-allowed')
+                }
+              >
+                <div className="aspect-video bg-gradient-to-br from-bg to-line grid place-items-center text-muted relative overflow-hidden">
+                  {cover ? (
+                    <img src={cover} alt={v.title} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : null}
+                  <div className={
+                    'relative z-10 w-14 h-14 rounded-full grid place-items-center ' +
+                    (isReady ? 'bg-white/90 text-primary shadow-lg' : 'bg-white/60 text-muted')
+                  }>
+                    {isReady ? <Play size={24} fill="currentColor" /> : <Video size={28} />}
+                  </div>
+                  {!isReady && (
+                    <span className="absolute bottom-2 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded">
+                      قريباً
+                    </span>
+                  )}
+                </div>
+                <div className="p-3">
+                  <h4 className="font-bold text-sm mb-1">{v.title}</h4>
+                  <p className="text-xs text-muted">{v.duration}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
         <p className="text-xs text-muted text-center mt-4">
-          💡 الفيديوهات قريباً — تجهيز محتوى احترافي بأيدٍ خبيرة.
+          💡 الفيديوهات قريباً — تجهيز محتوى احترافي. تصفّح Marketing-Sales/VIDEO_PRODUCTION_GUIDE.md للسيناريوهات الجاهزة.
         </p>
       </div>
+
+      {/* Video player modal */}
+      {playingVideo && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPlayingVideo(null)}
+        >
+          <div
+            className="bg-black rounded-2xl overflow-hidden w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3 text-white">
+              <h3 className="font-bold text-sm">{playingVideo.title}</h3>
+              <button onClick={() => setPlayingVideo(null)} className="hover:bg-white/10 p-1.5 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="aspect-video bg-black">
+              {playingVideo.youtubeId ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${playingVideo.youtubeId}?autoplay=1&rel=0`}
+                  title={playingVideo.title}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : playingVideo.vimeoId ? (
+                <iframe
+                  src={`https://player.vimeo.com/video/${playingVideo.vimeoId}?autoplay=1`}
+                  title={playingVideo.title}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contact Support */}
       <div className="card" data-tour="help-contact">
