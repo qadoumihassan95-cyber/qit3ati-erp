@@ -21,6 +21,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TOURS, type TourKey } from './tourSteps';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -39,8 +40,9 @@ const storageKey = (userId: string | undefined, key: TourKey) =>
   `${STORAGE_PREFIX}:${userId ?? 'guest'}:${key}`;
 
 export function TourProvider({ children }: { children: ReactNode }) {
-  const user = useAuth((s) => s.user);
-  const userId = user?.id ?? user?.sub ?? null;
+  const { t } = useTranslation();
+  const user = useAuth((s) => s.user) as any;
+  const userId: string | null = user?.id ?? user?.sub ?? null;
 
   const [isWelcomeOpen, setWelcomeOpen] = useState(false);
 
@@ -67,12 +69,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const startTour = useCallback(async (key: TourKey) => {
     setWelcomeOpen(false);
-    const allSteps = TOURS[key] ?? [];
-    if (allSteps.length === 0) return;
+    // TOURS entries are builders — calling resolves translations against
+    // the current language at the moment the tour is opened.
+    const builder = TOURS[key];
+    const allSteps = typeof builder === 'function' ? builder() : (builder as any) ?? [];
+    if (!allSteps || allSteps.length === 0) return;
 
     // Filter steps to only those whose element is in the DOM (steps without
     // `element` are always shown — they are modal-style intro popovers).
-    const steps = allSteps.filter((s) => {
+    const steps = allSteps.filter((s: any) => {
       if (!s.element) return true;
       try { return Boolean(document.querySelector(s.element as string)); }
       catch { return false; }
@@ -87,10 +92,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     const d = driver({
       showProgress: true,
-      progressText: 'الخطوة {{current}} من {{total}}',
-      nextBtnText: 'التالي ←',
-      prevBtnText: '→ السابق',
-      doneBtnText: 'إنهاء ✓',
+      progressText: t('tour.stepOf', { current: '{{current}}', total: '{{total}}' }),
+      nextBtnText: t('tour.next'),
+      prevBtnText: t('tour.prev'),
+      doneBtnText: t('tour.done'),
       smoothScroll: true,
       allowClose: true,
       overlayOpacity: 0.7,
@@ -101,7 +106,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       onDestroyed: () => markSeen(key),
     });
     d.drive();
-  }, [markSeen]);
+  }, [markSeen, t]);
 
   const dismissWelcome = useCallback(() => {
     setWelcomeOpen(false);

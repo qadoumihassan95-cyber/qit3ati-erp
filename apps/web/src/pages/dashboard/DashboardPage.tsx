@@ -1,7 +1,13 @@
+/**
+ * DashboardPage — fully bilingual (AR/EN) via react-i18next.
+ * Numbers and dates are locale-aware via the i18n helpers.
+ */
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { DollarSign, FileText, Wallet, AlertTriangle } from 'lucide-react';
+import { formatCurrency, formatDate, formatNumber } from '@/i18n';
 
 interface DashboardData {
   salesTodayTotal: number; salesTodayCount: number;
@@ -9,49 +15,74 @@ interface DashboardData {
   lowStockAlerts: any[];   receivables: number;
 }
 
-const fmtJOD = (n: number) =>
-  new Intl.NumberFormat('ar-JO', { maximumFractionDigits: 2 }).format(n) + ' د.أ';
-
 export default function DashboardPage() {
+  const { t, i18n } = useTranslation();
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => (await api.get('/tenants/dashboard')).data,
   });
 
+  // re-format whenever language changes
+  const dateLabel = formatDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">لوحة التحكم</h1>
+      <h1 className="text-2xl font-extrabold mb-1">{t('dashboard.title')}</h1>
       <p className="text-muted text-sm mb-6">
-        نظرة سريعة على أداء المحل اليوم — {new Date().toLocaleDateString('ar-JO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        {t('dashboard.subtitle', { date: dateLabel })}
       </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div data-tour="dash-today"><KpiCard color="green" icon={<DollarSign />} label="مبيعات اليوم" value={isLoading ? '—' : fmtJOD(data?.salesTodayTotal ?? 0)} /></div>
-        <div data-tour="dash-invoices"><KpiCard color="blue"  icon={<FileText />}   label="عدد الفواتير" value={isLoading ? '—' : String(data?.salesTodayCount ?? 0)} /></div>
-        <div data-tour="dash-month"><KpiCard color="amber" icon={<Wallet />}     label="مبيعات الشهر"  value={isLoading ? '—' : fmtJOD(data?.salesMonthTotal ?? 0)} /></div>
-        <div data-tour="dash-low-stock"><KpiCard color="red"   icon={<AlertTriangle />} label="قطع تحت الحد الأدنى" value={isLoading ? '—' : String(data?.lowStockAlerts?.length ?? 0)} /></div>
+        <div data-tour="dash-today">
+          <KpiCard color="green" icon={<DollarSign />}
+            label={t('dashboard.salesToday')}
+            value={isLoading ? '—' : formatCurrency(data?.salesTodayTotal ?? 0)} />
+        </div>
+        <div data-tour="dash-invoices">
+          <KpiCard color="blue" icon={<FileText />}
+            label={t('dashboard.invoicesCount')}
+            value={isLoading ? '—' : formatNumber(data?.salesTodayCount ?? 0)} />
+        </div>
+        <div data-tour="dash-month">
+          <KpiCard color="amber" icon={<Wallet />}
+            label={t('dashboard.salesMonth')}
+            value={isLoading ? '—' : formatCurrency(data?.salesMonthTotal ?? 0)} />
+        </div>
+        <div data-tour="dash-low-stock">
+          <KpiCard color="red" icon={<AlertTriangle />}
+            label={t('dashboard.lowStock')}
+            value={isLoading ? '—' : formatNumber(data?.lowStockAlerts?.length ?? 0)} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
-          <h3 className="font-extrabold mb-3">تنبيهات نفاد المخزون</h3>
+          <h3 className="font-extrabold mb-3">{t('dashboard.stockAlerts')}</h3>
           {(data?.lowStockAlerts?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted py-6 text-center">لا تنبيهات حالياً ✔</p>
+            <p className="text-sm text-muted py-6 text-center">{t('dashboard.noAlerts')}</p>
           ) : data!.lowStockAlerts.slice(0, 6).map((s: any, i: number) => (
             <div key={i} className="row-divide">
               <div>
                 <div className="font-bold">{s.part?.name}</div>
-                <div className="text-xs text-muted">المتوفر: {Number(s.quantity)} — الحد الأدنى: {Number(s.part?.minStock ?? 0)}</div>
+                <div className="text-xs text-muted">
+                  {t('stock.qtyAvailable')}: {formatNumber(Number(s.quantity))}
+                  {' — '}
+                  {t('parts.stockMin')}: {formatNumber(Number(s.part?.minStock ?? 0))}
+                </div>
               </div>
               <span className={'pill ' + (Number(s.quantity) === 0 ? 'pill-red' : 'pill-amber')}>
-                {Number(s.quantity) === 0 ? 'نفد' : 'منخفض'}
+                {Number(s.quantity) === 0 ? t('parts.outOfStock') : t('parts.lowStock')}
               </span>
             </div>
           ))}
         </div>
         <div className="card" data-tour="dash-receivables">
-          <h3 className="font-extrabold mb-3">الذمم المستحقة</h3>
-          <p className="text-sm text-muted py-2">إجمالي الذمم: <span className="font-extrabold text-primary">{fmtJOD(data?.receivables ?? 0)}</span></p>
+          <h3 className="font-extrabold mb-3">{t('dashboard.outstandingDebts')}</h3>
+          <p className="text-sm text-muted py-2">
+            {t('dashboard.outstandingDebtsTotal', {
+              value: formatCurrency(data?.receivables ?? 0),
+            })}
+          </p>
         </div>
       </div>
     </div>

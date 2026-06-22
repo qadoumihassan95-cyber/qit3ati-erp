@@ -1,22 +1,26 @@
 /**
- * tourSteps.ts
- * ─────────────────────────────────────────────────────────────────
- * Centralized tour definitions. Each tour is a Driver.js step list.
- * Steps use `data-tour="..."` attributes on the DOM. If an element
- * is missing on screen (responsive hide, permissions), the step is
- * skipped automatically (see TourProvider).
+ * tourSteps.ts — bilingual product-tour definitions.
  *
- * Adding a new tour:
- *   1. Pick a key (e.g. 'customers').
- *   2. Add an entry in TOURS.
- *   3. Each step has `element` (CSS selector) + `popover`.
- *   4. Add a `data-tour="<key>"` attribute to the DOM element.
+ * Each tour returns its steps via a getter so that translations are
+ * resolved at *call time* (not at module load). That way switching
+ * the language mid-session re-renders the next tour in the new language.
+ *
+ * Adding a tour:
+ *   1. Pick a key, add it to `TourKey`.
+ *   2. Add a builder function below that returns DriveStep[].
+ *   3. Register it in `TOURS`.
+ *   4. Add corresponding `data-tour="<key>"` attributes in the DOM.
+ *
+ * The full translation strings live under `tour.*` in ar.json/en.json.
  */
 
 import type { DriveStep } from 'driver.js';
+import i18n from 'i18next';
+
+const t = (key: string, opts?: any): string => i18n.t(key, opts) as string;
 
 export type TourKey =
-  | 'welcome'         // first-login overview tour (covers sidebar + dashboard highlights)
+  | 'welcome'
   | 'dashboard'
   | 'parts'
   | 'stock'
@@ -31,206 +35,167 @@ export type TourKey =
   | 'expenses'
   | 'settings';
 
-// helper to build popovers consistently
 const p = (title: string, description: string, side: 'top'|'bottom'|'left'|'right' = 'bottom') => ({
   title, description, side, align: 'start' as const,
 });
 
-/* ─────────────────────────────────────────────────────────
- *  WELCOME — covers everything new users need on day one
- * ───────────────────────────────────────────────────────── */
-const welcomeSteps: DriveStep[] = [
-  {
-    popover: p(
-      '👋 مرحباً بك في قِطَعتي!',
-      'نظام إدارة قطع الغيار السحابي العربي الأول. سأرشدك في جولة قصيرة (دقيقتان) لتتعرّف على أهمّ الميزات.\n\nيمكنك تخطّي الجولة في أي وقت — تستطيع إعادة تشغيلها لاحقاً من زرّ "؟" في أسفل الشاشة.',
-    ),
-  },
-  {
-    element: '[data-tour="sidebar"]',
-    popover: p(
-      '📋 القائمة الرئيسية',
-      'كل أقسام النظام من هنا: لوحة التحكم، نقطة البيع، الأصناف، المخزون، المشتريات، التقارير، والمزيد. القائمة دائماً ظاهرة على اليمين.',
-      'left',
-    ),
-  },
-  {
-    element: '[data-tour="branch-selector"]',
-    popover: p(
-      '🏢 اختيار الفرع',
-      'إذا كان لديك عدّة فروع، تنقّل بينها من هنا. كل ما تراه في النظام يتبدّل حسب الفرع المختار.',
-    ),
-  },
-  {
-    element: '[data-tour="global-search"]',
-    popover: p(
-      '🔎 البحث العالمي (⌘K)',
-      'ابحث عن أي شيء في النظام من هنا — أصناف، فواتير، عملاء، موردين، مشتريات. اضغط Cmd+K (أو Ctrl+K) من أيّ مكان.',
-    ),
-  },
-  {
-    element: '[data-tour="nav-parts"]',
-    popover: p(
-      '📦 الأصناف والقطع',
-      'كاتالوج كل قطعك مع الصور والأسعار والمخزون والربحية. ابدأ بإضافة أصنافك من هنا أو استورد ملفك القديم.',
-      'left',
-    ),
-  },
-  {
-    element: '[data-tour="nav-pos"]',
-    popover: p(
-      '🛒 نقطة البيع (POS)',
-      'هنا تصدر الفواتير في ثوانٍ. يعمل على الجوال والكمبيوتر والتابلت. JoFotara تُرسَل تلقائياً.',
-      'left',
-    ),
-  },
-  {
-    element: '[data-tour="nav-reports"]',
-    popover: p(
-      '📊 التقارير الذكية',
-      '9 بطاقات قابلة للنقر تكشف كل أرقام محلّك: الإيراد، تكلفة البضاعة، الربح، المصاريف، الضريبة، عدد الفواتير… طباعة + Excel متاحة من كل تقرير.',
-      'left',
-    ),
-  },
-  {
-    popover: p(
-      '🎉 رائع! انتهت الجولة',
-      'الآن أنت جاهز للبدء. نصيحتنا:\n\n1. أنشئ فرعك الأول من قسم الفروع.\n2. استورد أصنافك من Excel أو أضفها يدوياً.\n3. جرّب إصدار فاتورتك الأولى من POS.\n\nأي وقت تحتاج مساعدة، اضغط على زرّ "؟" في أسفل الشاشة.',
-    ),
-  },
-];
-
-/* ─────────────────────────────────────────────────────────
- *  PAGE-SPECIFIC TOURS — concise (3-6 steps each)
- * ───────────────────────────────────────────────────────── */
-
-const dashboardSteps: DriveStep[] = [
-  { element: '[data-tour="dash-today"]',       popover: p('💰 مبيعات اليوم', 'مجموع مبيعاتك اليوم لحظياً.') },
-  { element: '[data-tour="dash-month"]',       popover: p('📅 مبيعات الشهر', 'إجمالي مبيعات الشهر الحالي — لمقارنة الأداء.') },
-  { element: '[data-tour="dash-invoices"]',    popover: p('🧾 عدد الفواتير', 'كم فاتورة أصدرت اليوم.') },
-  { element: '[data-tour="dash-low-stock"]',   popover: p('⚠️ تنبيهات نفاد المخزون', 'القطع التي وصلت للحد الأدنى — تذكير للشراء.') },
-  { element: '[data-tour="dash-receivables"]', popover: p('👥 الذمم المستحقة', 'إجمالي ما لك على العملاء — تابعها لتحصيل أسرع.') },
-];
-
-const partsSteps: DriveStep[] = [
-  { element: '[data-tour="parts-new"]',      popover: p('➕ صنف جديد', 'أضف قطعة جديدة بكل تفاصيلها (SKU، Part Number، OEM، الأسعار…).') },
-  { element: '[data-tour="parts-import"]',   popover: p('📥 استيراد متطوّر', 'انقل أصنافك من Excel/CSV من أي نظام — معالج 5 خطوات بـmapping ذكي.') },
-  { element: '[data-tour="parts-export"]',   popover: p('📤 التصدير', 'صدّر أصنافك — Excel/CSV — كاملة أو حسب الفلتر الحالي.') },
-  { element: '[data-tour="parts-search"]',   popover: p('🔍 البحث', 'ابحث بالاسم، SKU، Part Number، OEM، أو الباركود.') },
-  { element: '[data-tour="parts-table"]',    popover: p('💡 انقر على أيّ صنف', 'يفتح بطاقة 360° — كل شيء عن القطعة: المخزون بكل فرع، آخر بيع، آخر شراء، الأرباح، البدائل.', 'top') },
-];
-
-const stockSteps: DriveStep[] = [
-  { element: '[data-tour="stock-table"]', popover: p('📦 حركة المخزون الحالية', 'كل القطع بكمياتها وفروعها وحالتها.') },
-  { popover: p('💡 ميزة', 'انقر على أي صنف لرؤية حركة المخزون الكاملة.') },
-];
-
-const salesSteps: DriveStep[] = [
-  { element: '[data-tour="sales-new"]',     popover: p('➕ فاتورة جديدة', 'أنشئ فاتورة بيع — تستطيع اختيار العميل، إضافة قطع، وتطبيق خصم وضريبة.') },
-  { element: '[data-tour="sales-table"]',   popover: p('📋 كل الفواتير', 'كل فواتيرك مع رقمها، تاريخها، عميلها، حالة JoFotara، والمبلغ. انقر فاتورة لفتحها.') },
-];
-
-const posSteps: DriveStep[] = [
-  { element: '[data-tour="pos-search"]',   popover: p('🔍 ابحث عن القطعة', 'ابحث بالاسم، SKU، Part Number، أو امسح الباركود.') },
-  { element: '[data-tour="pos-grid"]',     popover: p('📦 القطع المتاحة', 'انقر على القطعة لإضافتها للسلّة.', 'top') },
-  { element: '[data-tour="pos-cart"]',     popover: p('🛒 السلّة', 'هنا تحرّر الكميات، الخصومات، وتختار العميل.', 'left') },
-  { element: '[data-tour="pos-checkout"]', popover: p('✅ إصدار الفاتورة', 'بنقرة واحدة: تُحفظ الفاتورة، تُرسَل JoFotara، وتطبع.', 'top') },
-];
-
-const purchasesSteps: DriveStep[] = [
-  { element: '[data-tour="purch-new"]',   popover: p('➕ فاتورة شراء جديدة', 'سجّل شحنة جديدة من مورد — تختار المورد، الفرع، تضيف القطع وأسعار الشراء.') },
-  { element: '[data-tour="purch-table"]', popover: p('📋 فواتير الشراء', 'كل فواتير الشراء — انقر فاتورة لتعديلها أو طباعتها.') },
-];
-
-const customersSteps: DriveStep[] = [
-  { element: '[data-tour="cust-new"]',    popover: p('➕ عميل جديد', 'أضف عميلاً جديداً مع اسمه، هاتفه، وحدّ ائتماني اختياري.') },
-  { element: '[data-tour="cust-search"]', popover: p('🔍 البحث', 'ابحث بالاسم أو الهاتف.') },
-  { element: '[data-tour="cust-table"]',  popover: p('💡 انقر على عميل', 'يفتح كشف حسابه: الرصيد، الفواتير، الإيصالات، الأقدمية.') },
-];
-
-const suppliersSteps: DriveStep[] = [
-  { element: '[data-tour="supp-new"]',    popover: p('➕ مورد جديد', 'أضف موردك مع تفاصيل التواصل والحدّ الائتماني.') },
-  { element: '[data-tour="supp-table"]',  popover: p('💡 انقر على مورد', 'يفتح كشف حساب المورد: المستحق، فواتير الشراء، الدفعات.') },
-];
-
-const reportsSteps: DriveStep[] = [
-  { element: '[data-tour="reports-tabs"]',      popover: p('📑 أنواع التقارير', 'الأرباح والخسائر، الربحية حسب القطعة، دوران المخزون، أعمار ديون العملاء والموردين.') },
-  { element: '[data-tour="reports-period"]',    popover: p('📅 الفترة الزمنية', 'حدّد من تاريخ → إلى تاريخ. كل الأرقام تتعدّل تلقائياً.') },
-  { element: '[data-tour="reports-cards"]',     popover: p('💎 بطاقات قابلة للنقر', 'كل بطاقة (الإيراد، التكلفة، الربح، المصاريف…) تفتح تفاصيل كاملة عند النقر مع طباعة + Excel + PDF.') },
-];
-
-const branchesSteps: DriveStep[] = [
-  { element: '[data-tour="branches-new"]', popover: p('➕ فرع جديد', 'أضف فرعاً — يُنشأ مستودع رئيسي تلقائياً.') },
-  { element: '[data-tour="branches-grid"]', popover: p('🏢 كل فروعك', 'كل بطاقة فرع تستطيع تعديلها أو تفعيلها/تعطيلها.') },
-];
-
-const transfersSteps: DriveStep[] = [
-  { element: '[data-tour="transfers-new"]', popover: p('🔄 تحويل جديد', 'انقل بضاعة بين فرعين — اختر من/إلى، حدّد القطع وكمياتها.') },
-  { element: '[data-tour="transfers-table"]', popover: p('📋 حركة التحويلات', 'كل التحويلات — قيد النقل / تم الاستلام / ملغى. اضغط "استلم" حين تصل البضاعة للوجهة.') },
-];
-
-const expensesSteps: DriveStep[] = [
-  { element: '[data-tour="exp-new"]',    popover: p('➕ مصروف جديد', 'سجّل أيّ مصروف — كهرباء، إيجار، رواتب — مع التصنيف والفرع.') },
-  { element: '[data-tour="exp-table"]',  popover: p('💸 سجلّ المصاريف', 'كل المصاريف مع تواريخها — تظهر تلقائياً في تقرير الأرباح والخسائر.') },
-];
-
-const settingsSteps: DriveStep[] = [
-  { popover: p('⚙️ إعدادات النظام', 'من هنا تضبط:\n• إعدادات الشركة (الشعار، الرقم الضريبي، العنوان)\n• الفروع\n• المستخدمون والصلاحيات\n• إعدادات JoFotara\n• إعدادات الطباعة') },
-];
-
-/* ─────────────────────────────────────────────────────────
- *  Registry
- * ───────────────────────────────────────────────────────── */
-export const TOURS: Record<TourKey, DriveStep[]> = {
-  welcome:    welcomeSteps,
-  dashboard:  dashboardSteps,
-  parts:      partsSteps,
-  stock:      stockSteps,
-  sales:      salesSteps,
-  pos:        posSteps,
-  purchases:  purchasesSteps,
-  customers:  customersSteps,
-  suppliers:  suppliersSteps,
-  reports:    reportsSteps,
-  branches:   branchesSteps,
-  transfers:  transfersSteps,
-  expenses:   expensesSteps,
-  settings:   settingsSteps,
-};
-
-/* Map URL pathnames → tour key (for page-specific guide button) */
-export function tourKeyForPath(pathname: string): TourKey | null {
-  if (pathname === '/' || pathname.startsWith('/dashboard')) return 'dashboard';
-  if (pathname.startsWith('/parts'))      return 'parts';
-  if (pathname.startsWith('/stock'))      return 'stock';
-  if (pathname.startsWith('/pos'))        return 'pos';
-  if (pathname.startsWith('/sales')
-   || pathname.startsWith('/invoices'))   return 'sales';
-  if (pathname.startsWith('/purchases'))  return 'purchases';
-  if (pathname.startsWith('/customers'))  return 'customers';
-  if (pathname.startsWith('/suppliers'))  return 'suppliers';
-  if (pathname.startsWith('/reports'))    return 'reports';
-  if (pathname.startsWith('/branches'))   return 'branches';
-  if (pathname.startsWith('/transfers'))  return 'transfers';
-  if (pathname.startsWith('/expenses'))   return 'expenses';
-  if (pathname.startsWith('/settings'))   return 'settings';
-  return null;
+// ─── Welcome tour ───────────────────────────────────────────────
+function welcomeSteps(): DriveStep[] {
+  return [
+    { popover: p(t('tour.welcome.step1Title'), t('tour.welcome.step1Desc')) },
+    { element: '[data-tour="sidebar"]',         popover: p(t('tour.welcome.sidebarTitle'), t('tour.welcome.sidebarDesc'), 'left') },
+    { element: '[data-tour="branch-selector"]', popover: p(t('tour.welcome.branchTitle'),  t('tour.welcome.branchDesc')) },
+    { element: '[data-tour="lang-switcher"]',   popover: p(`🌐 ${t('common.language')}`,  t('header.languageSwitchTo', { lang: 'EN/AR' })) },
+    { element: '[data-tour="global-search"]',   popover: p('🔎 Search', t('header.searchPlaceholder')) },
+    { element: '[data-tour="nav-parts"]',       popover: p(`📦 ${t('nav.parts')}`,    t('parts.subtitle'), 'left') },
+    { element: '[data-tour="nav-pos"]',         popover: p(`🛒 ${t('nav.pos')}`,      t('pos.title'),       'left') },
+    { element: '[data-tour="nav-reports"]',     popover: p(`📊 ${t('nav.reports')}`,  t('reports.subtitle'),'left') },
+  ];
 }
 
-/* Human-readable Arabic label for the help menu */
+// ─── Page-specific tours ────────────────────────────────────────
+function dashboardSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="dash-today"]',       popover: p(`💰 ${t('dashboard.salesToday')}`,  '') },
+    { element: '[data-tour="dash-month"]',       popover: p(`📅 ${t('dashboard.salesMonth')}`,  '') },
+    { element: '[data-tour="dash-invoices"]',    popover: p(`🧾 ${t('dashboard.invoicesCount')}`,'') },
+    { element: '[data-tour="dash-low-stock"]',   popover: p(`⚠️ ${t('dashboard.lowStock')}`,    '') },
+    { element: '[data-tour="dash-receivables"]', popover: p(`👥 ${t('dashboard.outstandingDebts')}`, '') },
+  ];
+}
+
+function partsSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="parts-new"]',      popover: p(`➕ ${t('parts.new')}`,            t('parts.subtitle')) },
+    { element: '[data-tour="parts-import"]',   popover: p(`📥 ${t('parts.advancedImport')}`, '') },
+    { element: '[data-tour="parts-export"]',   popover: p(`📤 ${t('parts.export')}`,         '') },
+    { element: '[data-tour="parts-search"]',   popover: p(`🔍 ${t('common.search')}`,        t('parts.searchPlaceholder')) },
+    { element: '[data-tour="parts-table"]',    popover: p('💡', t('parts.tipClickRow'), 'top') },
+  ];
+}
+
+function stockSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="stock-table"]', popover: p(`📦 ${t('stock.title')}`, t('stock.subtitle')) },
+  ];
+}
+
+function salesSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="sales-new"]',   popover: p(`➕ ${t('sales.newInvoice')}`, '') },
+    { element: '[data-tour="sales-table"]', popover: p(`📋 ${t('sales.invoices')}`, '') },
+  ];
+}
+
+function posSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="pos-search"]',   popover: p(`🔍 ${t('pos.searchPart')}`, '') },
+    { element: '[data-tour="pos-grid"]',     popover: p(`📦 ${t('parts.title')}`, '', 'top') },
+    { element: '[data-tour="pos-cart"]',     popover: p(`🛒 ${t('pos.cart')}`, '', 'left') },
+    { element: '[data-tour="pos-checkout"]', popover: p(`✅ ${t('pos.checkout')}`, '', 'top') },
+  ];
+}
+
+function purchasesSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="purch-new"]',   popover: p(`➕ ${t('purchases.newPurchase')}`, '') },
+    { element: '[data-tour="purch-table"]', popover: p(`📋 ${t('purchases.title')}`,        '') },
+  ];
+}
+
+function customersSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="cust-new"]',    popover: p(`➕ ${t('customers.new')}`,   '') },
+    { element: '[data-tour="cust-search"]', popover: p(`🔍 ${t('common.search')}`,   '') },
+    { element: '[data-tour="cust-table"]',  popover: p('💡', '', 'top') },
+  ];
+}
+
+function suppliersSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="supp-new"]',   popover: p(`➕ ${t('suppliers.new')}`,    '') },
+    { element: '[data-tour="supp-table"]', popover: p('💡', '', 'top') },
+  ];
+}
+
+function reportsSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="reports-tabs"]',   popover: p(`📑 ${t('reports.title')}`,    t('reports.subtitle')) },
+    { element: '[data-tour="reports-period"]', popover: p(`📅 ${t('reports.period')}`,   '') },
+    { element: '[data-tour="reports-cards"]',  popover: p(`💎 ${t('reports.netProfit')}`,'') },
+  ];
+}
+
+function branchesSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="branches-new"]',   popover: p(`➕ ${t('branches.new')}`,   '') },
+    { element: '[data-tour="branches-table"]', popover: p(`🏢 ${t('branches.title')}`, '') },
+  ];
+}
+
+function transfersSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="transfers-new"]',   popover: p(`➕ ${t('transfers.newTransfer')}`, '') },
+    { element: '[data-tour="transfers-table"]', popover: p(`🔄 ${t('transfers.title')}`,        '') },
+  ];
+}
+
+function expensesSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="expenses-new"]',   popover: p(`➕ ${t('expenses.new')}`,   '') },
+    { element: '[data-tour="expenses-table"]', popover: p(`💸 ${t('expenses.title')}`, '') },
+  ];
+}
+
+function settingsSteps(): DriveStep[] {
+  return [
+    { element: '[data-tour="settings-tabs"]', popover: p(`⚙️ ${t('settings.title')}`, '') },
+  ];
+}
+
+/** Registry of all available tours — each entry is a builder so translations
+ *  are resolved when the tour is opened (not at module load). */
+export const TOURS: Record<TourKey, () => DriveStep[]> = {
+  welcome:   welcomeSteps,
+  dashboard: dashboardSteps,
+  parts:     partsSteps,
+  stock:     stockSteps,
+  sales:     salesSteps,
+  pos:       posSteps,
+  purchases: purchasesSteps,
+  customers: customersSteps,
+  suppliers: suppliersSteps,
+  reports:   reportsSteps,
+  branches:  branchesSteps,
+  transfers: transfersSteps,
+  expenses:  expensesSteps,
+  settings:  settingsSteps,
+};
+
+/** Map a route path to a tour key — used by HelpButton to pick the
+ *  "explain this page" tour for the current screen. */
+export function tourKeyForPath(path: string): TourKey | null {
+  const seg = path.split('/').filter(Boolean)[0] ?? '';
+  const key = seg as TourKey;
+  return (key in TOURS) ? key : null;
+}
+
+/** Human-readable label for a tour key (Arabic fallback when no translation
+ *  loaded). Used by HelpButton to show "explain {{page}}". Kept here for
+ *  backward compatibility — new code should use `t('nav.<key>')`. */
 export const TOUR_LABELS: Record<TourKey, string> = {
-  welcome:    'الجولة التعريفية الكاملة',
-  dashboard:  'شرح لوحة التحكم',
-  parts:      'شرح الأصناف',
-  stock:      'شرح المخزون',
-  sales:      'شرح المبيعات',
-  pos:        'شرح نقطة البيع',
-  purchases:  'شرح المشتريات',
-  customers:  'شرح العملاء',
-  suppliers:  'شرح الموردين',
-  reports:    'شرح التقارير',
-  branches:   'شرح الفروع',
-  transfers:  'شرح تحويلات الفروع',
-  expenses:   'شرح المصاريف',
-  settings:   'شرح الإعدادات',
+  welcome:   'الجولة الترحيبية',
+  dashboard: 'لوحة التحكم',
+  parts:     'الأصناف',
+  stock:     'المخزون',
+  sales:     'المبيعات',
+  pos:       'نقطة البيع',
+  purchases: 'المشتريات',
+  customers: 'العملاء',
+  suppliers: 'الموردون',
+  reports:   'التقارير',
+  branches:  'الفروع',
+  transfers: 'التحويلات',
+  expenses:  'المصاريف',
+  settings:  'الإعدادات',
 };

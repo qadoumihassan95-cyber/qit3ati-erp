@@ -1,16 +1,21 @@
 /**
  * HelpButton — floating "?" button + dropdown menu, always visible.
- *   • "شرح هذه الصفحة" — runs the page-specific tour
- *   • "الجولة التعريفية الكاملة" — re-runs the welcome tour
- *   • "مركز المساعدة" — opens the help center (external link)
+ *   • Page-specific tour
+ *   • Full welcome tour
+ *   • Help center (external link)
+ *
+ * Fully bilingual via react-i18next. The button stays in the bottom-left
+ * corner regardless of writing direction (it's a global affordance).
  */
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { HelpCircle, RotateCw, MapPin, BookOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTour } from './TourProvider';
-import { tourKeyForPath, TOUR_LABELS } from './tourSteps';
+import { tourKeyForPath } from './tourSteps';
 
 export default function HelpButton() {
+  const { t } = useTranslation();
   const { startTour, openWelcome } = useTour();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -31,34 +36,40 @@ export default function HelpButton() {
 
   const pageKey = tourKeyForPath(pathname);
 
+  // page name (translated) — used as subtitle for "explain this page"
+  // tour keys mirror nav.* keys where possible (parts, pos, stock, etc.)
+  const pageLabelKey = pageKey ? `nav.${pageKey}` : 'common.help';
+
   return (
-    <div ref={ref} className="fixed bottom-4 left-4 z-40 no-print">
+    <div ref={ref} className="fixed bottom-4 ltr:left-4 rtl:left-4 z-40 no-print">
       {/* Menu */}
       {open && (
         <div className="mb-2 w-64 bg-white rounded-xl shadow-2xl border border-line overflow-hidden animate-in slide-in-from-bottom-2 fade-in">
           <div className="px-3 py-2 bg-bg/60 text-xs font-bold text-muted border-b border-line">
-            🆘 مركز المساعدة
+            🆘 {t('tour.help.title')}
           </div>
           {pageKey && (
             <button
               onClick={() => { setOpen(false); startTour(pageKey); }}
-              className="w-full text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm"
+              className="w-full ltr:text-left rtl:text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm"
             >
               <MapPin size={16} className="text-primary shrink-0" />
               <div>
-                <div className="font-bold">شرح هذه الصفحة</div>
-                <div className="text-xs text-muted">{TOUR_LABELS[pageKey]}</div>
+                <div className="font-bold">{t('tour.help.pageTour')}</div>
+                <div className="text-xs text-muted">
+                  {t('tour.help.pageTourSub', { page: t(pageLabelKey) })}
+                </div>
               </div>
             </button>
           )}
           <button
             onClick={() => { setOpen(false); openWelcome(); }}
-            className="w-full text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
+            className="w-full ltr:text-left rtl:text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
           >
             <RotateCw size={16} className="text-amber-600 shrink-0" />
             <div>
-              <div className="font-bold">إعادة الجولة التعريفية</div>
-              <div className="text-xs text-muted">جولة سريعة بكل أقسام النظام</div>
+              <div className="font-bold">{t('tour.help.fullTour')}</div>
+              <div className="text-xs text-muted">{t('tour.help.fullTourSub')}</div>
             </div>
           </button>
           <a
@@ -66,12 +77,12 @@ export default function HelpButton() {
             target="_blank"
             rel="noreferrer"
             onClick={() => setOpen(false)}
-            className="w-full text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
+            className="w-full ltr:text-left rtl:text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
           >
             <BookOpen size={16} className="text-blue-600 shrink-0" />
             <div>
-              <div className="font-bold">مركز المساعدة</div>
-              <div className="text-xs text-muted">الأسئلة الشائعة والشروحات</div>
+              <div className="font-bold">{t('tour.help.helpCenter')}</div>
+              <div className="text-xs text-muted">{t('tour.help.helpCenterSub')}</div>
             </div>
           </a>
         </div>
@@ -86,8 +97,8 @@ export default function HelpButton() {
             ? 'bg-ink text-white rotate-180'
             : 'bg-primary text-white hover:scale-110 hover:shadow-2xl')
         }
-        aria-label="مساعدة"
-        title="مساعدة"
+        aria-label={t('common.help')}
+        title={t('common.help')}
       >
         <HelpCircle size={22} />
       </button>
