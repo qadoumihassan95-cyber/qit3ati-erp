@@ -5,6 +5,7 @@ import Layout from '@/components/layout/Layout';
 import { TourProvider } from '@/tour/TourProvider';
 import WelcomeModal from '@/tour/WelcomeModal';
 import HelpButton from '@/tour/HelpButton';
+import DomTranslator from '@/i18n/DomTranslator';
 import LoginPage from '@/pages/auth/LoginPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import PartsPage from '@/pages/parts/PartsPage';
@@ -70,6 +71,10 @@ export default function App() {
       {/* Welcome modal (first login) + floating Help button (everywhere) */}
       <WelcomeModal />
       <HelpButton />
+
+      {/* Runtime AR→EN overlay: translates every visible Arabic text node
+          when the language is English. Static no-op when language is Arabic. */}
+      <DomTranslator />
     </TourProvider>
   );
 }

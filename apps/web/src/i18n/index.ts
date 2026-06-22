@@ -71,9 +71,23 @@ export function getLanguage(): Lang {
 }
 
 export function setLanguage(lang: Lang): void {
-  void i18n.changeLanguage(lang);
+  const prev = getLanguage();
   try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* ignore */ }
   applyDocAttrs(lang);
+  // When switching between AR and EN we hard-reload the page. The
+  // DomTranslator overlay rewrites Arabic text in place for EN, so to
+  // get the original Arabic strings back we need a fresh render from
+  // source. Reload is the simplest, most reliable path.
+  if (prev !== lang) {
+    // best-effort: also change i18next before reload so any code that
+    // reads from it before unload sees the new value.
+    void i18n.changeLanguage(lang);
+    window.dispatchEvent(new CustomEvent('i18n:change', { detail: lang }));
+    // give the browser a tick to persist localStorage
+    setTimeout(() => window.location.reload(), 30);
+    return;
+  }
+  void i18n.changeLanguage(lang);
   window.dispatchEvent(new CustomEvent('i18n:change', { detail: lang }));
 }
 
