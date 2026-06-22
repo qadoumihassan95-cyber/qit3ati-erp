@@ -40,8 +40,7 @@ const storageKey = (userId: string | undefined, key: TourKey) =>
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const user = useAuth((s) => s.user);
-  const userId = user?.id ?? user?.sub ?? null;
-
+  const userId: string | null = (user as any)?.id ?? (user as any)?.sub ?? null;
   const [isWelcomeOpen, setWelcomeOpen] = useState(false);
 
   // On login: if user has never seen the welcome tour, open the modal.
