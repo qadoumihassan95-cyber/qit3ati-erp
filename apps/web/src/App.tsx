@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Layout from '@/components/layout/Layout';
+import { TourProvider } from '@/tour/TourProvider';
+import WelcomeModal from '@/tour/WelcomeModal';
+import HelpButton from '@/tour/HelpButton';
 import LoginPage from '@/pages/auth/LoginPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import PartsPage from '@/pages/parts/PartsPage';
@@ -30,37 +33,43 @@ function Protected({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/"
-        element={
-          <Protected>
-            <Layout />
-          </Protected>
-        }
-      >
-        <Route index               element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"    element={<DashboardPage />} />
-        <Route path="pos"          element={<PosPage />} />
-        <Route path="parts"        element={<PartsPage />} />
-        <Route path="stock"        element={<StockPage />} />
-        <Route path="purchases"    element={<PurchasesPage />} />
-        <Route path="transfers"    element={<TransfersPage />} />
-        <Route path="customers"    element={<CustomersPage />} />
-        <Route path="suppliers"    element={<SuppliersPage />} />
-        <Route path="expenses"     element={<ExpensesPage />} />
-        <Route path="returns"      element={<ReturnsPage />} />
-        <Route path="reports"      element={<ReportsPage />} />
-        <Route path="branches"     element={<BranchesPage />} />
-        <Route path="audit"        element={<AuditPage />} />
-        <Route path="papers"       element={<PapersPage />} />
-        <Route path="cheques"      element={<ChequesPage />} />
-        <Route path="jofotara"     element={<JofotaraPage />} />
-        <Route path="invoices"     element={<InvoicesPage />} />
-        <Route path="settings"     element={<SettingsPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <TourProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <Protected>
+              <Layout />
+            </Protected>
+          }
+        >
+          <Route index               element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard"    element={<DashboardPage />} />
+          <Route path="pos"          element={<PosPage />} />
+          <Route path="parts"        element={<PartsPage />} />
+          <Route path="stock"        element={<StockPage />} />
+          <Route path="purchases"    element={<PurchasesPage />} />
+          <Route path="transfers"    element={<TransfersPage />} />
+          <Route path="customers"    element={<CustomersPage />} />
+          <Route path="suppliers"    element={<SuppliersPage />} />
+          <Route path="expenses"     element={<ExpensesPage />} />
+          <Route path="returns"      element={<ReturnsPage />} />
+          <Route path="reports"      element={<ReportsPage />} />
+          <Route path="branches"     element={<BranchesPage />} />
+          <Route path="audit"        element={<AuditPage />} />
+          <Route path="papers"       element={<PapersPage />} />
+          <Route path="cheques"      element={<ChequesPage />} />
+          <Route path="jofotara"     element={<JofotaraPage />} />
+          <Route path="invoices"     element={<InvoicesPage />} />
+          <Route path="settings"     element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Welcome modal (first login) + floating Help button (everywhere) */}
+      <WelcomeModal />
+      <HelpButton />
+    </TourProvider>
   );
 }

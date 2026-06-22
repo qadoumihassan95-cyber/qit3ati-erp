@@ -67,6 +67,7 @@ export default function Layout() {
 
       {/* Sidebar — fixed-drawer on mobile, sticky-column on desktop */}
       <aside
+        data-tour="sidebar"
         className={
           'bg-gradient-to-b from-primary to-primary-dark text-white p-4 ' +
           'fixed inset-y-0 right-0 w-[260px] z-50 transition-transform duration-200 ease-out overflow-y-auto ' +
@@ -95,6 +96,7 @@ export default function Layout() {
               <NavLink
                 to={to}
                 onClick={closeDrawer}
+                data-tour={`nav-${to.replace(/^\//, '') || 'dashboard'}`}
                 className={({ isActive }) =>
                   'flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-semibold transition ' +
                   (isActive ? 'bg-white text-primary shadow-sm' : 'text-white/85 hover:bg-white/10')
@@ -119,10 +121,13 @@ export default function Layout() {
             <Menu size={22} />
           </button>
 
-          <GlobalSearch />
+          <div data-tour="global-search" className="flex-1 min-w-0">
+            <GlobalSearch />
+          </div>
 
           {currentBranch && (
             <select
+              data-tour="branch-selector"
               className="hidden sm:block text-xs sm:text-sm text-muted font-semibold bg-bg border border-line rounded-lg px-2 sm:px-3 py-2 max-w-[180px]"
               value={currentBranch.id}
               onChange={(e) => setBranch(e.target.value)}

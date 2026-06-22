@@ -317,7 +317,7 @@ export default function PartsPage() {
 
       <div className="card">
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <div className="relative flex-1 min-w-[240px]">
+          <div className="relative flex-1 min-w-[240px]" data-tour="parts-search">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
             <input className="input pr-10" placeholder="ابحث بـSKU أو الاسم أو OEM..."
                    value={q} onChange={(e) => setQ(e.target.value)} />
@@ -332,13 +332,15 @@ export default function PartsPage() {
             <option value="out">نفدت</option>
           </select>
 
-          <button className="btn-primary" onClick={openCreate}>
+          <button className="btn-primary" onClick={openCreate} data-tour="parts-new">
             <Plus size={16} /> صنف جديد
           </button>
-          <button className="btn-ghost" onClick={() => setWizardOpen(true)}>
+          <button className="btn-ghost" onClick={() => setWizardOpen(true)} data-tour="parts-import">
             <FileUp size={16} /> استيراد متطوّر
           </button>
-          <ExportMenu items={items} allItems={allItems} totalCount={data?.total ?? 0} />
+          <span data-tour="parts-export">
+            <ExportMenu items={items} allItems={allItems} totalCount={data?.total ?? 0} />
+          </span>
         </div>
 
         <div className="text-xs text-muted mb-2 flex items-center justify-between flex-wrap gap-2">
@@ -352,7 +354,7 @@ export default function PartsPage() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-tour="parts-table">
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="text-right text-muted text-xs font-bold border-b-2 border-line">

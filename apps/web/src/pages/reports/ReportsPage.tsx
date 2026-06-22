@@ -34,7 +34,7 @@ export default function ReportsPage() {
       />
 
       <div className="card mb-4">
-        <div className="flex gap-2 mb-3 overflow-x-auto -mx-3 px-3 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:px-0">
+        <div className="flex gap-2 mb-3 overflow-x-auto -mx-3 px-3 sm:flex-wrap sm:overflow-visible sm:mx-0 sm:px-0" data-tour="reports-tabs">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
                     className={'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap shrink-0 ' +
@@ -44,7 +44,7 @@ export default function ReportsPage() {
           ))}
         </div>
         {(tab === 'pnl' || tab === 'turnover' || tab === 'profit-by-part') && (
-          <div className="grid grid-cols-2 gap-2 max-w-md">
+          <div className="grid grid-cols-2 gap-2 max-w-md" data-tour="reports-period">
             <div>
               <label className="block text-xs text-muted mb-1">من تاريخ</label>
               <input type="date" className="input py-1.5" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -84,7 +84,7 @@ function PnLReport({ from, to, onDrill }: { from: string; to: string; onDrill: (
   const netClass = Number(data.netProfit) >= 0 ? 'text-green-700' : 'text-red-700';
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="reports-cards">
         <ClickableKpi color="green" label="الإيراد"        value={fmtMoney(data.revenue)}     onClick={() => onDrill('revenue')} />
         <ClickableKpi color="amber" label="تكلفة البضاعة"  value={fmtMoney(data.cogs)}        onClick={() => onDrill('cogs')} />
         <ClickableKpi color="blue"  label="إجمالي الربح"   value={fmtMoney(data.grossProfit)} sub={`هامش ${data.grossMargin}%`} onClick={() => onDrill('profit')} />
