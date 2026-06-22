@@ -15,7 +15,7 @@ import {
   Settings as SettingsIcon, Bell, LogOut, Truck,
   ArrowLeftRight, Menu, X, Users, Building2, Receipt,
   RotateCcw, FileBarChart, Building, Shield, FileCheck,
-  Banknote, Landmark, FileText,
+  Banknote, Landmark, FileText, GraduationCap, HelpCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
@@ -50,6 +50,8 @@ const NAV: NavItem[] = [
   { to: '/papers',    labelKey: 'nav.papers',    icon: FileCheck      },
   { to: '/audit',     labelKey: 'nav.audit',     icon: Shield         },
   { to: '/settings',  labelKey: 'nav.settings',  icon: SettingsIcon   },
+  { to: '/training',  labelKey: 'nav.training',  icon: GraduationCap,  sectionKey: 'nav.section_help' },
+  { to: '/help',      labelKey: 'nav.help',      icon: HelpCircle     },
 ];
 
 export default function Layout() {

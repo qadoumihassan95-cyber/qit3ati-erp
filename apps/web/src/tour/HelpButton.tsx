@@ -8,8 +8,8 @@
  * corner regardless of writing direction (it's a global affordance).
  */
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { HelpCircle, RotateCw, MapPin, BookOpen } from 'lucide-react';
+import { useLocation, Link } from 'react-router-dom';
+import { HelpCircle, RotateCw, MapPin, BookOpen, GraduationCap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTour } from './TourProvider';
 import { tourKeyForPath } from './tourSteps';
@@ -72,10 +72,19 @@ export default function HelpButton() {
               <div className="text-xs text-muted">{t('tour.help.fullTourSub')}</div>
             </div>
           </button>
-          <a
-            href="https://qit3ati-web.onrender.com/"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/training"
+            onClick={() => setOpen(false)}
+            className="w-full ltr:text-left rtl:text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
+          >
+            <GraduationCap size={16} className="text-green-600 shrink-0" />
+            <div>
+              <div className="font-bold">وضع التدريب</div>
+              <div className="text-xs text-muted">8 تدريبات تفاعلية</div>
+            </div>
+          </Link>
+          <Link
+            to="/help"
             onClick={() => setOpen(false)}
             className="w-full ltr:text-left rtl:text-right px-3 py-2.5 hover:bg-bg flex items-center gap-2 text-sm border-t border-line"
           >
@@ -84,7 +93,7 @@ export default function HelpButton() {
               <div className="font-bold">{t('tour.help.helpCenter')}</div>
               <div className="text-xs text-muted">{t('tour.help.helpCenterSub')}</div>
             </div>
-          </a>
+          </Link>
         </div>
       )}
 
