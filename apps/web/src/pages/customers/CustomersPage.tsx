@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Search, Users, Banknote, Edit3 } from 'lucide-react';
 import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
+import { useTranslation } from 'react-i18next';
 
 interface Customer {
   id: string; name: string; phone: string | null; email: string | null;
@@ -24,6 +25,7 @@ interface CustomerForm {
 const TIER_LABEL: Record<string, string> = { retail: 'تجزئة', wholesale: 'جملة', special: 'خاص' };
 
 export default function CustomersPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -40,12 +42,12 @@ export default function CustomersPage() {
   return (
     <div>
       <PageHeader
-        title="العملاء"
-        subtitle="إدارة قاعدة بيانات العملاء، أسعارهم، وسقوف ائتمانهم"
+        title={t("customers.title")}
+        subtitle={t("customers.title")}
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <PrintBar
-              title="العملاء"
+              title={t("customers.title")}
               subtitle={q ? `بحث: "${q}"` : undefined}
               columns={[
                 { key: 'name',        label: 'الاسم',         width: '25%' },

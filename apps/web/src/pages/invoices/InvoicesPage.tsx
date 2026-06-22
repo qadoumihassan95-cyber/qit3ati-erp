@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { fmtMoney, fmtDate, errMsg } from '@/lib/format';
 import { Printer, Send, RefreshCw, FileCode, Eye, AlertCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import { useTranslation } from 'react-i18next';
 
 type JofotaraStatus = 'not_sent' | 'queued' | 'sent' | 'accepted' | 'rejected' | 'failed' | 'needs_resubmit';
 
@@ -40,6 +41,7 @@ const PAYMENT_LABEL: Record<string, string> = {
 };
 
 export default function InvoicesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const branchId = useAuth((s) => s.branchId);
   const [page, setPage] = useState(1);
@@ -94,7 +96,7 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">فواتير البيع</h1>
+      <h1 className="text-2xl font-extrabold mb-1">{t('sales.invoices')}</h1>
       <p className="text-muted text-sm mb-6">
         كل فواتير البيع — مع حالة الفوترة الإلكترونية وأزرار الإرسال إلى JoFotara
       </p>

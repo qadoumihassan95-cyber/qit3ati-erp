@@ -9,6 +9,7 @@ import {
   Activity, ListChecks,
 } from 'lucide-react';
 import { errMsg, fmtDate, fmtMoney } from '@/lib/format';
+import { useTranslation } from 'react-i18next';
 
 type Env = 'sandbox' | 'production';
 type Status = 'not_sent' | 'queued' | 'sent' | 'accepted' | 'rejected' | 'failed' | 'needs_resubmit';
@@ -61,6 +62,7 @@ interface Dashboard {
 }
 
 export default function JofotaraPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const role = useAuth((s) => s.user?.role);
   const isOwner = role === 'owner';
@@ -69,7 +71,7 @@ export default function JofotaraPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">الفوترة الإلكترونية — JoFotara</h1>
+      <h1 className="text-2xl font-extrabold mb-1">{t('jofotara.title')}</h1>
       <p className="text-muted text-sm mb-6">
         ربط مع نظام الفوترة الوطني الأردني (ISTD) — إرسال الفواتير، تتبّع الاستجابات، وإدارة المفاتيح بأمان.
       </p>

@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,6 +51,7 @@ interface ImportResult {
 }
 
 export default function PartsPage() {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'low' | 'out'>('all');
   const branchId = useAuth((s) => s.branchId);
@@ -294,9 +296,9 @@ export default function PartsPage() {
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
-        <h1 className="text-2xl font-extrabold">الأصناف وقطع السيارات</h1>
+        <h1 className="text-2xl font-extrabold">{t('parts.title')}</h1>
         <PrintBar
-          title="الأصناف وقطع السيارات"
+          title={t('parts.title')}
           subtitle={[
             q && `بحث: "${q}"`,
             statusFilter !== 'all' && `الحالة: ${statusFilter === 'out' ? 'نفدت' : statusFilter === 'low' ? 'منخفضة' : 'متوفرة'}`,
@@ -312,31 +314,31 @@ export default function PartsPage() {
         />
       </div>
       <p className="text-muted text-sm mb-6">
-        الكتالوج الكامل — بحث بأي رقم (Part Number / OEM / بديل / باركود)
+        {t('parts.subtitle')}
       </p>
 
       <div className="card">
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-[240px]" data-tour="parts-search">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input className="input pr-10" placeholder="ابحث بـSKU أو الاسم أو OEM..."
+            <input className="input pr-10" placeholder={t('parts.searchPlaceholder')}
                    value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
 
           <select className="input max-w-[160px]"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}>
-            <option value="all">كل الحالات</option>
-            <option value="available">متوفرة</option>
-            <option value="low">منخفضة</option>
-            <option value="out">نفدت</option>
+            <option value="all">{t('parts.allStatuses')}</option>
+            <option value="available">{t('parts.inStock')}</option>
+            <option value="low">{t('parts.lowStock')}</option>
+            <option value="out">{t('parts.outOfStock')}</option>
           </select>
 
           <button className="btn-primary" onClick={openCreate} data-tour="parts-new">
-            <Plus size={16} /> صنف جديد
+            <Plus size={16} /> {t('parts.new')}
           </button>
           <button className="btn-ghost" onClick={() => setWizardOpen(true)} data-tour="parts-import">
-            <FileUp size={16} /> استيراد متطوّر
+            <FileUp size={16} /> {t('parts.advancedImport')}
           </button>
           <span data-tour="parts-export">
             <ExportMenu items={items} allItems={allItems} totalCount={data?.total ?? 0} />

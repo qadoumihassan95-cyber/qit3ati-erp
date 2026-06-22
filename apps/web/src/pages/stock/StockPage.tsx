@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import PrintBar from '@/components/print/PrintBar';
+import { useTranslation } from 'react-i18next';
 
 interface Row {
   id: string; branchId: string; branchName: string;
@@ -18,6 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function StockPage() {
+  const { t } = useTranslation();
   const branchId = useAuth((s) => s.branchId);
   const { data, isLoading } = useQuery<Row[]>({
     queryKey: ['stock', branchId],
@@ -28,7 +30,7 @@ export default function StockPage() {
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
-        <h1 className="text-2xl font-extrabold">المخزون والفروع</h1>
+        <h1 className="text-2xl font-extrabold">{t('stock.title')}</h1>
         <PrintBar
           title="المخزون والفروع"
           columns={[
@@ -50,7 +52,7 @@ export default function StockPage() {
           ]}
         />
       </div>
-      <p className="text-muted text-sm mb-6">مخزون مستقل لكل فرع + تحويل بضاعة بينها</p>
+      <p className="text-muted text-sm mb-6">{t('stock.subtitle')}</p>
 
       <div className="card">
         <h3 className="font-extrabold mb-3">حركة المخزون الحالية</h3>

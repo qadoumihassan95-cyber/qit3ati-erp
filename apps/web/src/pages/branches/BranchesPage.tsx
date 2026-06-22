@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Building, Edit3, MapPin, Phone } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Branch {
   id: string; name: string; code: string | null; address: string | null;
@@ -14,6 +15,7 @@ interface Branch {
 }
 
 export default function BranchesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Branch | null>(null);
   const [show, setShow] = useState(false);
@@ -25,8 +27,8 @@ export default function BranchesPage() {
   return (
     <div>
       <PageHeader
-        title="الفروع"
-        subtitle="فروع متعدّدة، كل فرع له مخزونه المستقل وإمكانية تحويل البضاعة بينها"
+        title={t("branches.title")}
+        subtitle={t("branches.title")}
         actions={<button className="btn-primary" onClick={() => { setEditing(null); setShow(true); }}><Plus size={16} /> فرع جديد</button>}
       />
       {isLoading ? (

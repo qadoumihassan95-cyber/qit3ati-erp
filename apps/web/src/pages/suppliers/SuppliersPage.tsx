@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Search, Building2, Banknote, Edit3 } from 'lucide-react';
 import PrintBar from '@/components/print/PrintBar';
+import { useTranslation } from 'react-i18next';
 
 interface Supplier {
   id: string; name: string; phone: string | null; email: string | null;
@@ -15,6 +16,7 @@ interface Supplier {
 }
 
 export default function SuppliersPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Supplier | null>(null);
@@ -31,12 +33,12 @@ export default function SuppliersPage() {
   return (
     <div>
       <PageHeader
-        title="الموردون"
-        subtitle="إدارة الموردين ومتابعة ما لهم علينا"
+        title={t("suppliers.title")}
+        subtitle={t("suppliers.title")}
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <PrintBar
-              title="الموردون"
+              title={t("suppliers.title")}
               subtitle={q ? `بحث: "${q}"` : undefined}
               columns={[
                 { key: 'name',      label: 'الاسم',          width: '30%' },

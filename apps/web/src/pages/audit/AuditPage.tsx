@@ -5,6 +5,7 @@ import { fmtDateLong } from '@/lib/format';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { Shield, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface AuditEntry {
   id: string;
@@ -29,6 +30,7 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 export default function AuditPage() {
+  const { t } = useTranslation();
   const [entity, setEntity] = useState('');
   const { data, isLoading } = useQuery<AuditEntry[]>({
     queryKey: ['audit', entity],
@@ -37,7 +39,7 @@ export default function AuditPage() {
 
   return (
     <div>
-      <PageHeader title="سجل التدقيق" subtitle="من فعل ماذا ومتى — كل عملية إنشاء أو تعديل أو حذف مسجّلة هنا" />
+      <PageHeader title={t("audit.title")} subtitle={t("audit.title")} />
 
       <div className="card mb-4">
         <label className="block text-sm font-bold mb-1.5">تصفية حسب النوع</label>

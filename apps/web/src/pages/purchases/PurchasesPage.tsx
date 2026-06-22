@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Plus, Search, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PurchaseInvoice {
   id: string;
@@ -27,6 +28,7 @@ const fmt = (n: number | string | null | undefined) =>
   new Intl.NumberFormat('ar-JO', { maximumFractionDigits: 2 }).format(Number(n ?? 0)) + ' د.أ';
 
 export default function PurchasesPage() {
+  const { t } = useTranslation();
   const branchId = useAuth((s) => s.branchId);
   const taxRate  = useAuth((s) => s.user?.settings?.taxRate ?? 16);
   const qc = useQueryClient();
@@ -95,12 +97,12 @@ export default function PurchasesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-extrabold">المشتريات</h1>
+        <h1 className="text-2xl font-extrabold">{t('purchases.title')}</h1>
         <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
           <Plus size={16} /> {showForm ? 'إخفاء النموذج' : 'فاتورة شراء جديدة'}
         </button>
       </div>
-      <p className="text-muted text-sm mb-6">فواتير المشتريات من الموردين — تزيد المخزون وتحدّث متوسط التكلفة تلقائياً</p>
+      <p className="text-muted text-sm mb-6">{t('purchases.subtitle', { defaultValue: '' })}</p>
 
       {showForm && (
         <div className="card mb-6">

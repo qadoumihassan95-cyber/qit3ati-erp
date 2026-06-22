@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal';
 import { errMsg, fmtDate } from '@/lib/format';
 import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
+import { useTranslation } from 'react-i18next';
 
 type PaperType =
   | 'shop_license' | 'commercial_reg' | 'profession_license' | 'tax'
@@ -67,6 +68,7 @@ const EMPTY: PaperForm = {
 };
 
 export default function PapersPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   // Live branches list (not the stale JWT snapshot) — see hooks/useBranches.ts
   const branchesFromAuth = useBranches().data ?? [];
@@ -214,7 +216,7 @@ export default function PapersPage() {
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
-        <h1 className="text-2xl font-extrabold">الأوراق الرسمية</h1>
+        <h1 className="text-2xl font-extrabold">{t('papers.title')}</h1>
         <PrintBar
           title="الأوراق الرسمية"
           subtitle={[

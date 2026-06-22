@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { ArrowLeftRight, Plus, Search, Trash2, CheckCircle2, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Branch { id: string; name: string; isMain: boolean }
 interface Part {
@@ -29,6 +30,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function TransfersPage() {
+  const { t } = useTranslation();
   const branchId = useAuth((s) => s.branchId);
   const qc = useQueryClient();
 
@@ -108,7 +110,7 @@ export default function TransfersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-extrabold">تحويلات الفروع</h1>
+        <h1 className="text-2xl font-extrabold">{t('transfers.title')}</h1>
         <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
           <Plus size={16} /> {showForm ? 'إخفاء النموذج' : 'تحويل جديد'}
         </button>

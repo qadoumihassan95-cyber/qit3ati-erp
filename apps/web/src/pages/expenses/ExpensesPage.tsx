@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, Receipt, Tag } from 'lucide-react';
 import PrintBar from '@/components/print/PrintBar';
+import { useTranslation } from 'react-i18next';
 
 interface Expense {
   id: string; amount: number | string; description: string | null;
@@ -20,6 +21,7 @@ interface Expense {
 interface ExpenseCategory { id: string; name: string }
 
 export default function ExpensesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const branchId = useAuth((s) => s.branchId);
   const [show, setShow] = useState(false);
@@ -35,12 +37,12 @@ export default function ExpensesPage() {
   return (
     <div>
       <PageHeader
-        title="المصاريف"
-        subtitle="تتبّع كل ما يخرج من الصندوق — إيجار، كهرباء، نقل، رواتب..."
+        title={t("expenses.title")}
+        subtitle={t("expenses.title")}
         actions={
           <div className="flex items-center gap-1.5 flex-wrap">
             <PrintBar
-              title="المصاريف"
+              title={t("expenses.title")}
               columns={[
                 { key: 'expenseDate', label: 'التاريخ',  format: (v) => fmtDate(v) },
                 { key: 'description', label: 'الوصف',    format: (v) => v ?? '—' },

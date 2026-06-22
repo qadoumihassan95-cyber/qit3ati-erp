@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { TrendingUp, Users, Building2, Package, BarChart3, ChevronLeft } from 'lucide-react';
 import ReportDetailDrawer, { type DetailMode } from './ReportDetailDrawer';
+import { useTranslation } from 'react-i18next';
 
 type Tab = 'pnl' | 'aging-customers' | 'aging-suppliers' | 'turnover' | 'profit-by-part';
 
@@ -21,6 +22,7 @@ const startOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOS
 const endOfDay     = () => new Date().toISOString().slice(0, 10);
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('pnl');
   const [from, setFrom] = useState(startOfMonth());
   const [to, setTo]     = useState(endOfDay());
@@ -101,7 +103,7 @@ function PnLReport({ from, to, onDrill }: { from: string; to: string; onDrill: (
           <ChevronLeft size={14} className="inline mr-1 opacity-0 group-hover:opacity-100 transition" />
         </div>
         <div className={'text-4xl font-extrabold ' + netClass}>{fmtMoney(data.netProfit)}</div>
-        <div className="text-muted text-sm mt-1">هامش صافي {data.netMargin}%</div>
+        <div className="text-muted text-sm mt-1">{t('reports.netProfit')} {data.netMargin}%</div>
       </button>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

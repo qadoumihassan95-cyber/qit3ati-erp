@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal';
 import { fmtMoney, fmtDate, errMsg } from '@/lib/format';
 import PrintBar from '@/components/print/PrintBar';
 import type { PrintColumn } from '@/lib/print';
+import { useTranslation } from 'react-i18next';
 
 type Direction = 'incoming' | 'outgoing';
 type Status = 'new' | 'due_soon' | 'due_today' | 'collected' | 'paid' | 'bounced' | 'cancelled';
@@ -65,6 +66,7 @@ const emptyForm: ChequeForm = {
 };
 
 export default function ChequesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   // Live branches list (not the stale JWT snapshot) — see hooks/useBranches.ts
   const branchesFromAuth = useBranches().data ?? [];
@@ -255,7 +257,7 @@ export default function ChequesPage() {
   return (
     <div>
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
-        <h1 className="text-2xl font-extrabold">الشيكات</h1>
+        <h1 className="text-2xl font-extrabold">{t('cheques.title')}</h1>
         <PrintBar
           title={`الشيكات — ${tab === 'incoming' ? 'لنا (واردة)' : 'علينا (صادرة)'}`}
           subtitle={[

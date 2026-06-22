@@ -2,6 +2,7 @@ import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { api } from '@/lib/api';
+import { useTranslation } from 'react-i18next';
 
 interface Settings {
   legalName?: string; taxNumber?: string;
@@ -13,6 +14,7 @@ interface Settings {
 const PALETTE = ['#1E5F74', '#7c3aed', '#16a34a', '#dc2626', '#0EA5E9'];
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<Settings>({
     queryKey: ['settings'],
@@ -35,8 +37,8 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">الإعدادات والهوية (White-Label)</h1>
-      <p className="text-muted text-sm mb-6">جرّب تغيير اسم الشركة ولونها — ستتغيّر الواجهة فوراً</p>
+      <h1 className="text-2xl font-extrabold mb-1">{t('settings.title')}</h1>
+      <p className="text-muted text-sm mb-6">{t('settings.branding')}</p>
 
       <div className="rounded-card p-5 mb-6 text-white" style={{ background: `linear-gradient(90deg, ${primary}, ${primary}E6)` }}>
         <h2 className="font-extrabold text-lg">كل شركة بهويتها الخاصة</h2>

@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Modal from '@/components/ui/Modal';
 import EmptyState from '@/components/ui/EmptyState';
 import { Plus, RotateCcw, Trash2, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Return {
   id: string;
@@ -31,6 +32,7 @@ interface SaleInvoice {
 interface ReturnLine { partId: string; name: string; sku: string; qty: number; maxQty: number; condition: 'good'|'damaged'; backToStock: boolean; }
 
 export default function ReturnsPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const branchId = useAuth((s) => s.branchId);
   const [show, setShow] = useState(false);
@@ -43,8 +45,8 @@ export default function ReturnsPage() {
   return (
     <div>
       <PageHeader
-        title="المرتجعات"
-        subtitle="مرتجع من عميل — اختر فاتورة، حدّد القطع، النظام يرجع للمخزون أو يسجّل كتالف"
+        title={t("returns.title")}
+        subtitle={t("returns.title")}
         actions={<button className="btn-primary" onClick={() => setShow(true)}><Plus size={16} /> مرتجع جديد</button>}
       />
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { Banknote, CreditCard, Search, X, PackageX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Part {
   id: string; sku: string; name: string;
@@ -37,6 +38,7 @@ function sanitize(s: string): string {
 }
 
 export default function PosPage() {
+  const { t } = useTranslation();
   const branchId = useAuth((s) => s.branchId);
   const taxRate  = useAuth((s) => s.user?.settings?.taxRate ?? 16);
   const qc = useQueryClient();
@@ -131,7 +133,7 @@ export default function PosPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">نقطة البيع (POS)</h1>
+      <h1 className="text-2xl font-extrabold mb-1">{t('pos.title')}</h1>
       <p className="text-muted text-sm mb-6">
         امسح الباركود أو اكتب رقم القطعة / OEM / الاسم — Enter يضيف أوّل نتيجة للسلة
       </p>
@@ -239,7 +241,7 @@ export default function PosPage() {
             {cart.length > 0 && <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">{cart.length}</span>}
           </h3>
           {cart.length === 0 ? (
-            <p className="text-center text-muted text-sm py-6">السلة فارغة — اختر قطعة</p>
+            <p className="text-center text-muted text-sm py-6">{t('pos.emptyCart')}</p>
           ) : (
             <div className="space-y-2 max-h-[40vh] lg:max-h-none overflow-y-auto">
               {cart.map((c) => (
