@@ -77,11 +77,12 @@ export default function ReportsPage() {
 }
 
 function PnLReport({ from, to, onDrill }: { from: string; to: string; onDrill: (m: DetailMode) => void }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ['report-pnl', from, to],
     queryFn: async () => (await api.get('/reports/pnl', { params: { from, to } })).data,
   });
-  if (isLoading) return <p className="text-muted text-center py-10">جاري التحميل...</p>;
+  if (isLoading) return <p className="text-muted text-center py-10">{t('app.loading')}</p>;
   if (!data) return null;
   const netClass = Number(data.netProfit) >= 0 ? 'text-green-700' : 'text-red-700';
   return (
