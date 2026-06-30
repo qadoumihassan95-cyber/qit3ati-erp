@@ -16,6 +16,7 @@
  * doesn't match the viewport. This guarantees that on phones
  * the user always has a working language control.
  */
+import type { MouseEvent, TouchEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Languages } from 'lucide-react';
 import { getLanguage, setLanguage, SUPPORTED_LANGS, type Lang } from './index';
@@ -26,7 +27,7 @@ export default function LanguageSwitcher() {
   const next: Lang = current === 'ar' ? 'en' : 'ar';
   const nextMeta = SUPPORTED_LANGS.find((l) => l.code === next)!;
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: MouseEvent | TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setLanguage(next);
