@@ -75,10 +75,37 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const allSteps = typeof builder === 'function' ? builder() : (builder as any) ?? [];
     if (!allSteps || allSteps.length === 0) return;
 
-    // Filter steps to only those whose element is in the DOM (steps without
-    // `element` are always shown — they are modal-style intro popovers).
+    /**
+     * Identify which steps target elements that live *inside* the sidebar.
+     * On mobile the sidebar is hidden behind a drawer; before we move to
+     * such a step, we need to open the drawer so the highlight actually
+     * lands on a visible element.
+     */
+    const SIDEBAR_SELECTORS = ['[data-tour="sidebar"]', '[data-tour^="nav-"]', '[data-tour="branch-selector"]'];
+    const targetsSidebar = (sel: string | undefined) =>
+      !!sel && SIDEBAR_SELECTORS.some((s) => sel.startsWith(s.slice(0, -1)) || sel === s);
+
+    /**
+     * Wait briefly for an element to be in the DOM (slide-in animation).
+     * Returns whether it actually showed up.
+     */
+    const waitFor = (sel: string, ms = 500) =>
+      new Promise<boolean>((resolve) => {
+        if (document.querySelector(sel)) return resolve(true);
+        const start = Date.now();
+        const tick = () => {
+          if (document.querySelector(sel)) return resolve(true);
+          if (Date.now() - start > ms) return resolve(false);
+          requestAnimationFrame(tick);
+        };
+        tick();
+      });
+
+    // Filter out steps whose element is missing AND not in the sidebar (those
+    // we open lazily). Keep modal-style steps (no element) always.
     const steps = allSteps.filter((s: any) => {
       if (!s.element) return true;
+      if (targetsSidebar(s.element)) return true;   // opened lazily before highlight
       try { return Boolean(document.querySelector(s.element as string)); }
       catch { return false; }
     });
@@ -103,7 +130,26 @@ export function TourProvider({ children }: { children: ReactNode }) {
       stageRadius: 8,
       popoverClass: 'qit3ati-tour-popover',
       steps,
-      onDestroyed: () => markSeen(key),
+      /**
+       * Open the sidebar drawer (on mobile) when the *next* step needs an
+       * element inside it; close the drawer when we move away. Use a
+       * 300ms wait to let the slide animation finish before driver.js
+       * measures the highlight rect.
+       */
+      onHighlightStarted: async (_el, step) => {
+        const sel = (step as any)?.element as string | undefined;
+        if (targetsSidebar(sel)) {
+          window.dispatchEvent(new CustomEvent('tour:sidebar-open'));
+          if (sel) await waitFor(sel, 400);
+        } else {
+          window.dispatchEvent(new CustomEvent('tour:sidebar-close'));
+        }
+      },
+      onDestroyed: () => {
+        markSeen(key);
+        // Close the drawer when the tour ends
+        window.dispatchEvent(new CustomEvent('tour:sidebar-close'));
+      },
     });
     d.drive();
   }, [markSeen, t]);

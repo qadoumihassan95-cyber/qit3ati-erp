@@ -3,7 +3,29 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
-body { -webkit-font-smoothing: antialiased; }
+body {
+  -webkit-font-smoothing: antialiased;
+  /* iOS Safari: respect the home-indicator + notch safe areas */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Floating UI (HelpButton, notification panel) never sits under the
+   iPhone home indicator. */
+.fixed[class*="bottom-"] { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Momentum scrolling on iOS */
+.overflow-y-auto, .overflow-y-scroll, [data-scroll-container] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Buttons + links: no double-tap-zoom delay on mobile */
+button, a, [role="button"] { touch-action: manipulation; }
+
+/* iOS Safari zooms-on-focus when input font-size < 16px — disable that */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+}
 
 /* Reusable card / table primitives matching the HTML mockup */
 @layer components {

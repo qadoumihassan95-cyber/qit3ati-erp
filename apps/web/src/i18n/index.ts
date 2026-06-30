@@ -32,7 +32,26 @@ export const SUPPORTED_LANGS: { code: Lang; label: string; native: string; flag:
 const STORAGE_KEY = 'qit3ati-lang';
 const DEFAULT_LANG: Lang = 'ar';
 
+/** Read cookie value safely (works in Private Browsing where localStorage may throw). */
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&') + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]!) : null;
+}
+
+function writeCookie(name: string, value: string) {
+  if (typeof document === 'undefined') return;
+  // 1 year, root path, SameSite=Lax for iOS Safari compatibility
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=31536000; Path=/; SameSite=Lax`;
+}
+
 function readSaved(): Lang {
+  // Try cookie first — survives iOS Safari "Block All Cookies" off-state better
+  // than localStorage in some Lockdown Mode setups.
+  try {
+    const c = readCookie(STORAGE_KEY);
+    if (c === 'ar' || c === 'en') return c;
+  } catch { /* ignore */ }
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v === 'ar' || v === 'en') return v;
@@ -72,23 +91,45 @@ export function getLanguage(): Lang {
 
 export function setLanguage(lang: Lang): void {
   const prev = getLanguage();
+  // Persist to BOTH localStorage AND cookie. iOS Safari sometimes drops
+  // localStorage writes that happen right before a reload — the cookie
+  // is the safety net that survives.
   try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* ignore */ }
+  try { writeCookie(STORAGE_KEY, lang); } catch { /* ignore */ }
+
   applyDocAttrs(lang);
-  // When switching between AR and EN we hard-reload the page. The
-  // DomTranslator overlay rewrites Arabic text in place for EN, so to
-  // get the original Arabic strings back we need a fresh render from
-  // source. Reload is the simplest, most reliable path.
+
   if (prev !== lang) {
-    // best-effort: also change i18next before reload so any code that
-    // reads from it before unload sees the new value.
     void i18n.changeLanguage(lang);
     window.dispatchEvent(new CustomEvent('i18n:change', { detail: lang }));
-    // give the browser a tick to persist localStorage
-    setTimeout(() => window.location.reload(), 30);
+    // 50ms gives the browser time to flush the cookie + localStorage write
+    // before the page tears down. `reload(true)` bypasses bfcache on iOS
+    // Safari, which would otherwise restore the page in the *previous*
+    // language because the React tree was serialized that way.
+    setTimeout(() => {
+      try { (window.location as any).reload(true); }
+      catch { window.location.reload(); }
+    }, 50);
     return;
   }
   void i18n.changeLanguage(lang);
   window.dispatchEvent(new CustomEvent('i18n:change', { detail: lang }));
+}
+
+/**
+ * When the page comes back from bfcache (mobile Safari "back" gesture,
+ * or app-switch on iOS), the DOM is restored but our React state still
+ * thinks we're in the old language. Reapply attributes + reload language
+ * so the user lands on what they last picked.
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('pageshow', (e: PageTransitionEvent) => {
+    if (e.persisted) {
+      const saved = readSaved();
+      applyDocAttrs(saved);
+      void i18n.changeLanguage(saved);
+    }
+  });
 }
 
 export function isRTL(): boolean {

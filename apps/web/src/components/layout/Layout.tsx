@@ -12,7 +12,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, ShoppingCart, Wrench, Boxes,
-  Settings as SettingsIcon, Bell, LogOut, Truck,
+  Settings as SettingsIcon, LogOut, Truck,
   ArrowLeftRight, Menu, X, Users, Building2, Receipt,
   RotateCcw, FileBarChart, Building, Shield, FileCheck,
   Banknote, Landmark, FileText, GraduationCap, HelpCircle,
@@ -20,9 +20,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import LanguageSwitcher from '@/i18n/LanguageSwitcher';
+import NotificationsButton from '@/components/layout/NotificationsButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 interface NavItem {
   to:        string;
@@ -74,6 +76,34 @@ export default function Layout() {
       document.documentElement.style.setProperty('--color-accent',  user.settings.colorSecondary);
     }
   }, [user]);
+
+  // Auto-close drawer when route changes (mobile UX)
+  const location = useLocation();
+  useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
+
+  /**
+   * Tour ⇄ Sidebar bridge.
+   *
+   * The product tour highlights elements inside the sidebar
+   * (`[data-tour="sidebar"]`, `[data-tour="nav-*"]`). On mobile the
+   * sidebar is hidden behind a drawer; if we don't open it, the tour
+   * highlights an off-screen element and the user sees nothing.
+   *
+   * TourProvider dispatches:
+   *   • `tour:sidebar-open`  — open the drawer (smooth)
+   *   • `tour:sidebar-close` — close it
+   * We listen here and toggle local state.
+   */
+  useEffect(() => {
+    const onOpen  = () => setDrawerOpen(true);
+    const onClose = () => setDrawerOpen(false);
+    window.addEventListener('tour:sidebar-open', onOpen);
+    window.addEventListener('tour:sidebar-close', onClose);
+    return () => {
+      window.removeEventListener('tour:sidebar-open', onOpen);
+      window.removeEventListener('tour:sidebar-close', onClose);
+    };
+  }, []);
 
   const closeDrawer = () => setDrawerOpen(false);
   const currentBranch = branches.find((b) => b.id === branchId) ?? branches[0];
@@ -171,13 +201,11 @@ export default function Layout() {
             </select>
           )}
 
-          {/* Language switcher — visible on every page */}
+          {/* Language switcher — visible on every page, mobile + desktop */}
           <LanguageSwitcher />
 
-          <button aria-label={t('common.notifications')} className="relative text-muted hover:text-primary p-1">
-            <Bell size={20} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-          </button>
+          {/* Notifications bell — opens a real panel */}
+          <NotificationsButton />
 
           <div className="flex items-center gap-2 font-bold text-sm">
             <div className="w-9 h-9 rounded-full bg-primary text-white grid place-items-center font-extrabold">
