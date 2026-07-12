@@ -27,6 +27,7 @@ import JofotaraPage from '@/pages/jofotara/JofotaraPage';
 import InvoicesPage from '@/pages/invoices/InvoicesPage';
 import HelpCenterPage from '@/pages/help/HelpCenterPage';
 import TrainingPage from '@/pages/training/TrainingPage';
+import TelegramSettingsPage from '@/pages/settings/TelegramSettingsPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="invoices"     element={<InvoicesPage />} />
           <Route path="help"         element={<HelpCenterPage />} />
           <Route path="training"     element={<TrainingPage />} />
+          <Route path="settings/telegram" element={<TelegramSettingsPage />} />
           <Route path="settings"     element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

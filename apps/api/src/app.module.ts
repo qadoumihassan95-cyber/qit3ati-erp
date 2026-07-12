@@ -29,6 +29,7 @@ import { PapersModule }    from './modules/papers/papers.module';
 import { ChequesModule }   from './modules/cheques/cheques.module';
 import { JofotaraModule }  from './modules/jofotara/jofotara.module';
 import { SearchModule }    from './modules/search/search.module';
+import { TelegramModule }  from './modules/telegram/telegram.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { SearchModule }    from './modules/search/search.module';
     ChequesModule,
     JofotaraModule,
     SearchModule,
+    TelegramModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

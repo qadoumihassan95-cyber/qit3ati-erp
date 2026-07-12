@@ -1541,3 +1541,88 @@ model TelegramLink {
 
   @@map("telegram_links")
 }
+
+// =====================================================================
+// Telegram Bot Integration (extends the pre-existing TelegramLink)
+// =====================================================================
+
+/**
+ * Persistent conversation state per Telegram chat. Multi-step flows
+ * (e.g. "record expense" → asks for category, branch, amount) survive
+ * server restarts by keeping their state here rather than in memory.
+ */
+model TelegramConversation {
+  id             String   @id @default(uuid()) @db.Uuid
+  telegramChatId String   @unique @map("telegram_chat_id") @db.VarChar(40)
+  /** Current pending flow (e.g. 'expense.awaiting_category'). null = idle. */
+  state          String?  @db.VarChar(80)
+  /** Free-form context — collected fields, last intent, etc. */
+  context        Json     @default("{}")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([updatedAt])
+  @@map("telegram_conversations")
+}
+
+/**
+ * Full audit trail of every incoming Telegram message we processed.
+ * Used for security review, debugging, and abuse detection.
+ */
+model TelegramCommandLog {
+  id             BigInt   @id @default(autoincrement())
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  telegramChatId String   @map("telegram_chat_id") @db.VarChar(40)
+  telegramUserId String?  @map("telegram_user_id") @db.VarChar(40)
+  /** Detected intent (e.g. 'expense.create', 'report.sales.today'). */
+  intent         String?  @db.VarChar(60)
+  /** Raw text sent by the user (truncated). */
+  rawText        String?  @map("raw_text") @db.VarChar(500)
+  /** Extracted arguments as JSON (amounts, dates, etc.). */
+  args           Json?
+  /** 'ok' | 'denied' | 'error' | 'pending' */
+  result         String   @db.VarChar(20)
+  /** Human-readable message returned to the user (truncated). */
+  reply          String?  @db.VarChar(500)
+  /** Optional linked entity (expense.id, invoice.id, …). */
+  entityType     String?  @map("entity_type") @db.VarChar(40)
+  entityId       String?  @map("entity_id") @db.Uuid
+  errorMessage   String?  @map("error_message") @db.VarChar(500)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([tenantId, createdAt])
+  @@index([telegramChatId, createdAt])
+  @@index([userId, createdAt])
+  @@map("telegram_command_log")
+}
+
+/**
+ * Notification subscriptions. A user can opt-in to receive scheduled
+ * summaries (daily/weekly) and real-time alerts (low stock, big
+ * expense, negative cash) at chosen times.
+ */
+model TelegramSubscription {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  telegramChatId String   @map("telegram_chat_id") @db.VarChar(40)
+  /** 'daily_summary' | 'weekly_summary' | 'low_stock' | 'big_expense' | 'overdue_receivable' | 'due_cheque' */
+  kind           String   @db.VarChar(40)
+  /** For scheduled kinds: HH:MM in tenant timezone. */
+  scheduleAt     String?  @map("schedule_at") @db.VarChar(5)
+  /** Comma-separated: 'mon,tue,wed,thu,fri,sat,sun'. Empty = all days. */
+  scheduleDays   String?  @map("schedule_days") @db.VarChar(30)
+  /** Optional branch restriction. */
+  branchId       String?  @map("branch_id") @db.Uuid
+  /** Threshold amount for 'big_expense' etc. */
+  threshold      Decimal? @db.Decimal(14, 3)
+  /** Preferred language for this subscription's messages. */
+  language       String?  @db.VarChar(4)
+  isActive       Boolean  @default(true) @map("is_active")
+  lastFiredAt    DateTime? @map("last_fired_at") @db.Timestamptz
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([tenantId, kind, isActive])
+  @@index([telegramChatId])
+  @@map("telegram_subscriptions")
+}
