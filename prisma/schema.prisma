@@ -1736,12 +1736,10 @@ enum JobCardStatus {
   cancelled
 }
 
-/**
- * A vehicle belonging to a customer. Auto-parts shops often keep
- * multiple cars per customer (family / fleet). Plate + VIN are both
- * indexed for fast lookup at the counter — either can identify a car.
- * Soft-delete via `deletedAt` matches the rest of the schema.
- */
+/// A vehicle belonging to a customer. Auto-parts shops often keep
+/// multiple cars per customer (family / fleet). Plate + VIN are both
+/// indexed for fast lookup at the counter — either can identify a car.
+/// Soft-delete via `deletedAt` matches the rest of the schema.
 model Vehicle {
   id           String    @id @default(uuid()) @db.Uuid
   tenantId     String    @map("tenant_id") @db.Uuid
@@ -1774,15 +1772,13 @@ model Vehicle {
   @@map("vehicles")
 }
 
-/**
- * The heart of the workshop module. Each card is a repair order for
- * a specific customer+vehicle, opened by one user, worked by (usually)
- * one mechanic, and closed when the customer picks the car up.
- *
- * Totals are derived (sum of parts + labor - discount + tax) and
- * cached on the row so lists don't need a join. They're recomputed
- * on every add/remove/edit inside a transaction.
- */
+/// The heart of the workshop module. Each card is a repair order for
+/// a specific customer+vehicle, opened by one user, worked by (usually)
+/// one mechanic, and closed when the customer picks the car up.
+///
+/// Totals are derived (sum of parts + labor - discount + tax) and
+/// cached on the row so lists don't need a join. They're recomputed
+/// on every add/remove/edit inside a transaction.
 model JobCard {
   id           String        @id @default(uuid()) @db.Uuid
   tenantId     String        @map("tenant_id") @db.Uuid
@@ -1800,9 +1796,9 @@ model JobCard {
 
   status       JobCardStatus @default(draft)
 
-  /** Who opened the card (usually a service advisor). */
+  /// Who opened the card (usually a service advisor).
   openedBy     String?       @map("opened_by") @db.Uuid
-  /** Assigned mechanic. */
+  /// Assigned mechanic.
   mechanicId   String?       @map("mechanic_id") @db.Uuid
 
   openedAt     DateTime      @default(now()) @map("opened_at") @db.Timestamptz
@@ -1814,10 +1810,8 @@ model JobCard {
   laborTotal   Decimal       @default(0) @map("labor_total") @db.Decimal(14, 3)
   total        Decimal       @default(0) @db.Decimal(14, 3)
 
-  /**
-   * Set once the card is completed and converted to a SalesInvoice.
-   * Nullable while the card is still open.
-   */
+  /// Set once the card is completed and converted to a SalesInvoice.
+  /// Nullable while the card is still open.
   invoiceId    String?       @unique @map("invoice_id") @db.Uuid
 
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
@@ -1840,14 +1834,12 @@ model JobCard {
   @@map("job_cards")
 }
 
-/**
- * A part attached to a job card. Quantity × unitPrice = lineTotal.
- * Stock is NOT deducted at add-time — a card in draft/in_progress
- * only reserves the parts logically. Deduction happens atomically
- * when the card is converted to an invoice (via SalesService), so
- * FIFO / avgCost / stock movement all funnel through the same
- * battle-tested code path.
- */
+/// A part attached to a job card. Quantity × unitPrice = lineTotal.
+/// Stock is NOT deducted at add-time — a card in draft/in_progress
+/// only reserves the parts logically. Deduction happens atomically
+/// when the card is converted to an invoice (via SalesService), so
+/// FIFO / avgCost / stock movement all funnel through the same
+/// battle-tested code path.
 model JobCardPart {
   id         String   @id @default(uuid()) @db.Uuid
   tenantId   String   @map("tenant_id") @db.Uuid
@@ -1867,11 +1859,9 @@ model JobCardPart {
   @@map("job_card_parts")
 }
 
-/**
- * A labor line. Hours × ratePerHour = lineTotal. `performedBy` is
- * optional so you can log "External bodywork" or similar without
- * having to create a User row for the outside vendor.
- */
+/// A labor line. Hours × ratePerHour = lineTotal. `performedBy` is
+/// optional so you can log "External bodywork" or similar without
+/// having to create a User row for the outside vendor.
 model JobCardLabor {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
