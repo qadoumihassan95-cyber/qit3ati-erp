@@ -89,6 +89,21 @@ export class PartsController {
   }
 
   /**
+   * Barcode lookup for the scanner UI (mobile camera + USB scanner).
+   * Returns the part with per-branch stock, or 404 if the barcode isn't
+   * registered — the frontend uses the 404 to prompt "Create new product?".
+   *
+   * Case-insensitive exact match. We deliberately do NOT fall back to a
+   * fuzzy search here; the scanner needs an unambiguous lookup so the
+   * user isn't tricked into scanning to the wrong SKU.
+   */
+  @Get('by-barcode/:code')
+  @Permissions('parts.view')
+  byBarcode(@Tenant() tenantId: string, @Param('code') code: string) {
+    return this.parts.findByBarcode(tenantId, code);
+  }
+
+  /**
    * Aggregated 360° view for the part-details modal — one call returns
    * stock, last sale/purchase, lifetime totals, sales/purchase history, and
    * stock movements. Heavier than /:id so we expose it as a separate route.

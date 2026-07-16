@@ -16,7 +16,7 @@ import {
   ArrowLeftRight, Menu, X, Users, Building2, Receipt,
   RotateCcw, FileBarChart, Building, Shield, FileCheck,
   Banknote, Landmark, FileText, GraduationCap, HelpCircle,
-  Send,
+  Send, ScanLine,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
@@ -39,6 +39,7 @@ const NAV: NavItem[] = [
   { to: '/pos',       labelKey: 'nav.pos',       icon: ShoppingCart   },
   { to: '/invoices',  labelKey: 'nav.invoices',  icon: FileText       },
   { to: '/parts',     labelKey: 'nav.parts',     icon: Wrench,         sectionKey: 'nav.section_inventory' },
+  { to: '/parts/receive', labelKey: 'nav.receive', icon: ScanLine     },
   { to: '/stock',     labelKey: 'nav.stock',     icon: Boxes          },
   { to: '/purchases', labelKey: 'nav.purchases', icon: Truck          },
   { to: '/transfers', labelKey: 'nav.transfers', icon: ArrowLeftRight },

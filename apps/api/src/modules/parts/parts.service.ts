@@ -99,6 +99,35 @@ export class PartsService {
     };
   }
 
+  /**
+   * Barcode lookup for the scanner UI. Case-insensitive exact match.
+   * Returns the part with per-branch stock so the scanner can immediately
+   * show the operator "you have X units in branch Y at cost Z".
+   * Throws 404 when no part matches — the frontend catches that and
+   * shows "Create new product?" prefilled with the scanned code.
+   */
+  async findByBarcode(tenantId: string, code: string) {
+    const trimmed = (code ?? '').trim();
+    if (!trimmed) throw new NotFoundException('barcode is empty');
+    // Case-insensitive exact match; Prisma's `mode: insensitive` requires PG
+    // (which we're on). Reject over-long inputs to keep the index sane.
+    if (trimmed.length > 80) throw new NotFoundException('barcode too long');
+    const part = await this.prisma.part.findFirst({
+      where: {
+        tenantId,
+        deletedAt: null,
+        barcode: { equals: trimmed, mode: 'insensitive' },
+      },
+      include: {
+        stocks: { include: { branch: { select: { id: true, name: true } } } },
+        category: { select: { id: true, name: true } },
+        images: { take: 1, orderBy: { isPrimary: 'desc' } },
+      },
+    });
+    if (!part) throw new NotFoundException('لا يوجد منتج بهذا الباركود / no product for this barcode');
+    return part;
+  }
+
   async findOne(tenantId: string, id: string) {
     const part = await this.prisma.part.findFirst({
       // also filter deletedAt — soft-deleted parts must not leak via GET /:id

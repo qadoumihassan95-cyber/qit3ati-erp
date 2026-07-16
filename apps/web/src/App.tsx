@@ -28,6 +28,7 @@ import InvoicesPage from '@/pages/invoices/InvoicesPage';
 import HelpCenterPage from '@/pages/help/HelpCenterPage';
 import TrainingPage from '@/pages/training/TrainingPage';
 import TelegramSettingsPage from '@/pages/settings/TelegramSettingsPage';
+import BarcodeReceivingPage from '@/pages/parts/BarcodeReceivingPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="dashboard"    element={<DashboardPage />} />
           <Route path="pos"          element={<PosPage />} />
           <Route path="parts"        element={<PartsPage />} />
+          <Route path="parts/receive" element={<BarcodeReceivingPage />} />
           <Route path="stock"        element={<StockPage />} />
           <Route path="purchases"    element={<PurchasesPage />} />
           <Route path="transfers"    element={<TransfersPage />} />

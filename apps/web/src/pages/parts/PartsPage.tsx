@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
-import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, FileUp, Pencil, Trash2, Download, AlertCircle, CheckCircle2, Image as ImageIcon, ScanLine } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Modal from '@/components/ui/Modal';
 import { fmtMoney, errMsg } from '@/lib/format';
@@ -337,6 +338,9 @@ export default function PartsPage() {
           <button className="btn-primary" onClick={openCreate} data-tour="parts-new">
             <Plus size={16} /> {t('parts.new')}
           </button>
+          <Link to="/parts/receive" className="btn-ghost" data-tour="parts-receive">
+            <ScanLine size={16} /> مسح باركود
+          </Link>
           <button className="btn-ghost" onClick={() => setWizardOpen(true)} data-tour="parts-import">
             <FileUp size={16} /> {t('parts.advancedImport')}
           </button>
