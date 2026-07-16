@@ -208,11 +208,20 @@ export class PurchasesService {
     });
   }
 
-  async list(tenantId: string, branchId?: string, page = 1, perPage = 25) {
+  async list(
+    tenantId: string,
+    scope?: string | string[] | null,
+    page = 1,
+    perPage = 25,
+  ) {
+    const branchFilter: Prisma.PurchaseInvoiceWhereInput =
+      scope == null       ? {} :
+      Array.isArray(scope) ? { branchId: { in: scope } } :
+                             { branchId: scope };
     const where: Prisma.PurchaseInvoiceWhereInput = {
       tenantId,
       deletedAt: null,
-      ...(branchId ? { branchId } : {}),
+      ...branchFilter,
     };
     const [items, total] = await Promise.all([
       this.prisma.purchaseInvoice.findMany({

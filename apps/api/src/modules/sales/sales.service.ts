@@ -239,15 +239,33 @@ export class SalesService {
     return `INV-${year}-${String(counter.value).padStart(4, '0')}`;
   }
 
-  async list(tenantId: string, branchId?: string, page = 1, perPage = 25) {
+  /**
+   * `scope` mirrors BranchAccessService.scope() output:
+   *   null              → owner, no branch filter
+   *   string            → single branchId (already validated by controller)
+   *   string[]          → user's assigned branches (in filter). Empty
+   *                       array intentionally returns zero rows — a
+   *                       non-owner with no assignments sees nothing.
+   */
+  async list(
+    tenantId: string,
+    scope?: string | string[] | null,
+    page = 1,
+    perPage = 25,
+  ) {
+    const branchFilter =
+      scope == null       ? {} :
+      Array.isArray(scope) ? { branchId: { in: scope } } :
+                             { branchId: scope };
+    const where = { tenantId, ...branchFilter };
     const [items, total] = await Promise.all([
       this.prisma.salesInvoice.findMany({
-        where: { tenantId, ...(branchId ? { branchId } : {}) },
+        where,
         include: { customer: { select: { id: true, name: true } }, items: true },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage, take: perPage,
       }),
-      this.prisma.salesInvoice.count({ where: { tenantId, ...(branchId ? { branchId } : {}) } }),
+      this.prisma.salesInvoice.count({ where }),
     ]);
     return { items, total, page, perPage, pages: Math.ceil(total / perPage) };
   }

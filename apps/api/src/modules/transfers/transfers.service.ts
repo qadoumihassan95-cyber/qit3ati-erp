@@ -257,12 +257,24 @@ export class TransfersService {
     });
   }
 
-  async list(tenantId: string, branchId?: string) {
+  /**
+   * `scope`:
+   *   null     → owner, no branch filter
+   *   string   → single branchId (matches transfers where the branch
+   *              is EITHER source or target — a transfer between two
+   *              of the user's branches shows up once)
+   *   string[] → user's assigned branches (same OR semantics — a
+   *              transfer where either side is in the user's set is
+   *              visible). Empty array = zero results.
+   */
+  async list(tenantId: string, scope?: string | string[] | null) {
+    const orClause =
+      scope == null ? undefined :
+      Array.isArray(scope)
+        ? { OR: [{ fromBranch: { in: scope } }, { toBranch: { in: scope } }] }
+        : { OR: [{ fromBranch: scope         }, { toBranch: scope         }] };
     return this.prisma.transfer.findMany({
-      where: {
-        tenantId,
-        ...(branchId ? { OR: [{ fromBranch: branchId }, { toBranch: branchId }] } : {}),
-      },
+      where: { tenantId, ...(orClause ?? {}) },
       include: {
         from:   { select: { id: true, name: true } },
         to:     { select: { id: true, name: true } },

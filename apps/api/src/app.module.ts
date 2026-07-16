@@ -6,6 +6,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { BranchAccessModule } from './common/branch-access/branch-access.module';
 
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -46,6 +47,7 @@ import { FifoModule }      from './modules/fifo/fifo.module';
       { name: 'short',   ttl: 60_000, limit: 1000 },
     ]),
     PrismaModule,
+    BranchAccessModule,
     HealthModule,
     AuthModule,
     TenantsModule,

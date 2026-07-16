@@ -22,9 +22,18 @@ export interface AuthUser {
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
+  /**
+   * The currently-selected branch.
+   *   • A branch UUID → the user is scoped to that branch's data.
+   *   • null          → "All branches" mode; only shown in the header
+   *     dropdown for owners (isSuperAdmin || permissions include
+   *     `branches.view_all`). Pages that need to write to a specific
+   *     branch (POS, Purchases, Transfers) must force-pick one before
+   *     submit.
+   */
   branchId: string | null;
   setSession: (token: string, user: AuthUser) => void;
-  setBranch: (branchId: string) => void;
+  setBranch: (branchId: string | null) => void;
   logout: () => void;
   hasPermission: (perm: string) => boolean;
 }

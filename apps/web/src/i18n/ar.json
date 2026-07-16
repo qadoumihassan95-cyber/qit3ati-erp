@@ -116,6 +116,7 @@
     "closeMenu": "إغلاق القائمة",
     "logoutTitle": "تسجيل خروج",
     "branchSelector": "اختر الفرع",
+    "allBranches": "جميع الفروع",
     "searchPlaceholder": "ابحث في كل النظام — عملاء، أصناف، فواتير، شيكات...",
     "languageSwitchTo": "تبديل إلى {{lang}}"
   },

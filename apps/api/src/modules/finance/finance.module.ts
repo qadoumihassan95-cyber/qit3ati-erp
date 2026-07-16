@@ -3,6 +3,7 @@ import { IsEnum, IsISO8601, IsNumber, IsOptional, IsString, MaxLength, Min, MinL
 import { PrismaService } from '../../prisma/prisma.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
+import { BranchAccessService } from '../../common/branch-access/branch-access.service';
 
 // ============================ DTOs ============================
 
@@ -157,9 +158,16 @@ class ExpensesService {
     });
   }
 
-  list(tenantId: string, branchId?: string) {
+  list(tenantId: string, scope?: string | string[] | null) {
+    // For finance, non-owners never see records without a branchId
+    // (those are HQ/owner-only cash movements). Owners (scope=null)
+    // see everything.
+    const branchFilter =
+      scope == null       ? {} :
+      Array.isArray(scope) ? { branchId: { in: scope } } :
+                             { branchId: scope };
     return this.prisma.expense.findMany({
-      where: { tenantId, ...(branchId ? { branchId } : {}) },
+      where: { tenantId, ...branchFilter },
       include: {
         category: { select: { id: true, name: true } },
         branch:   { select: { id: true, name: true } },
@@ -184,7 +192,7 @@ class ExpensesService {
 
 @Controller('receipts')
 class ReceiptsController {
-  constructor(private readonly svc: ReceiptsService) {}
+  constructor(private readonly svc: ReceiptsService, private readonly branchAccess: BranchAccessService) {}
 
   @Get()
   @Permissions('accounting.view')
@@ -194,14 +202,19 @@ class ReceiptsController {
 
   @Post()
   @Permissions('accounting.entry')
-  create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateReceiptDto) {
+  async create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateReceiptDto) {
+    // If the receipt is tagged to a branch (e.g. a specific cashier's
+    // till), enforce access. Untagged (tenant-wide) receipts stay
+    // open to any user with accounting.entry — the permission itself
+    // is the gate in that case.
+    if (d.branchId) await this.branchAccess.assertWrite(u, tid, d.branchId);
     return this.svc.create(tid, u.sub, d);
   }
 }
 
 @Controller('payments')
 class PaymentsController {
-  constructor(private readonly svc: PaymentsService) {}
+  constructor(private readonly svc: PaymentsService, private readonly branchAccess: BranchAccessService) {}
 
   @Get()
   @Permissions('accounting.view')
@@ -211,24 +224,27 @@ class PaymentsController {
 
   @Post()
   @Permissions('accounting.entry')
-  create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreatePaymentDto) {
+  async create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreatePaymentDto) {
+    if (d.branchId) await this.branchAccess.assertWrite(u, tid, d.branchId);
     return this.svc.create(tid, u.sub, d);
   }
 }
 
 @Controller('expenses')
 class ExpensesController {
-  constructor(private readonly svc: ExpensesService) {}
+  constructor(private readonly svc: ExpensesService, private readonly branchAccess: BranchAccessService) {}
 
   @Get()
   @Permissions('accounting.view')
-  list(@Tenant() tid: string, @Query('branchId') branchId?: string) {
-    return this.svc.list(tid, branchId);
+  async list(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Query('branchId') branchId?: string) {
+    const scope = await this.branchAccess.scope(u, tid, branchId);
+    return this.svc.list(tid, scope);
   }
 
   @Post()
   @Permissions('accounting.entry')
-  create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateExpenseDto) {
+  async create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateExpenseDto) {
+    if (d.branchId) await this.branchAccess.assertWrite(u, tid, d.branchId);
     return this.svc.create(tid, u.sub, d);
   }
 

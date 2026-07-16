@@ -116,6 +116,7 @@
     "closeMenu": "Close menu",
     "logoutTitle": "Sign out",
     "branchSelector": "Select branch",
+    "allBranches": "All branches",
     "searchPlaceholder": "Search anything — customers, parts, invoices, cheques…",
     "languageSwitchTo": "Switch to {{lang}}"
   },

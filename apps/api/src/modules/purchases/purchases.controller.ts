@@ -4,6 +4,7 @@ import { ArrayMinSize, IsArray, IsEnum, IsISO8601, IsNumber, IsOptional, IsStrin
 import { PurchasesService } from './purchases.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
+import { BranchAccessService } from '../../common/branch-access/branch-access.service';
 
 class PurchaseItemDto {
   @IsString() partId!: string;
@@ -27,19 +28,24 @@ class CreatePurchaseDto {
 
 @Controller('purchases')
 export class PurchasesController {
-  constructor(private readonly purchases: PurchasesService) {}
+  constructor(
+    private readonly purchases: PurchasesService,
+    private readonly branchAccess: BranchAccessService,
+  ) {}
 
   @Get()
   @Permissions('purchase.view')
-  list(
+  async list(
     @Tenant() tenantId: string,
+    @CurrentUser() user: JwtUser,
     @Query('branchId') branchId?: string,
     @Query('page') page?: string,
     @Query('perPage') perPage?: string,
   ) {
+    const scope = await this.branchAccess.scope(user, tenantId, branchId);
     return this.purchases.list(
       tenantId,
-      branchId,
+      scope,
       page ? +page : 1,
       perPage ? +perPage : 25,
     );
@@ -47,17 +53,20 @@ export class PurchasesController {
 
   @Get(':id')
   @Permissions('purchase.view')
-  one(@Tenant() tenantId: string, @Param('id') id: string) {
-    return this.purchases.findOne(tenantId, id);
+  async one(@Tenant() tenantId: string, @CurrentUser() user: JwtUser, @Param('id') id: string) {
+    const invoice = await this.purchases.findOne(tenantId, id);
+    if (invoice?.branchId) await this.branchAccess.assertWrite(user, tenantId, invoice.branchId);
+    return invoice;
   }
 
   @Post()
   @Permissions('purchase.create')
-  create(
+  async create(
     @Tenant() tenantId: string,
     @CurrentUser() user: JwtUser,
     @Body() dto: CreatePurchaseDto,
   ) {
+    await this.branchAccess.assertWrite(user, tenantId, dto.branchId);
     return this.purchases.createPurchase(tenantId, user.sub, dto);
   }
 }

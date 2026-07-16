@@ -109,7 +109,20 @@ export default function Layout() {
   }, []);
 
   const closeDrawer = () => setDrawerOpen(false);
-  const currentBranch = branches.find((b) => b.id === branchId) ?? branches[0];
+  const currentBranch = branches.find((b) => b.id === branchId) ?? (branchId ? null : null);
+
+  /**
+   * "All branches" mode: the user is authorized to see everything —
+   * either they're a super-admin OR their role carries the
+   * `branches.view_all` permission (owner-tier). When active, the
+   * branch dropdown shows "All branches" and `branchId` in the auth
+   * store is null, which every page treats as "no filter". Pages
+   * that need a branchId to write (POS, Purchases, Transfers) still
+   * force-pick one before submit.
+   */
+  const canSeeAllBranches =
+    !!(user as any)?.isSuperAdmin ||
+    (user?.permissions ?? []).includes('branches.view_all');
 
   // Drawer slide direction depends on direction:
   // RTL  → drawer pinned to the right, hidden by translate-x-full
@@ -192,14 +205,21 @@ export default function Layout() {
             <GlobalSearch />
           </div>
 
-          {currentBranch && (
+          {(currentBranch || canSeeAllBranches) && branches.length > 0 && (
             <select
               data-tour="branch-selector"
               aria-label={t('header.branchSelector')}
               className="hidden sm:block text-xs sm:text-sm text-muted font-semibold bg-bg border border-line rounded-lg px-2 sm:px-3 py-2 max-w-[180px]"
-              value={currentBranch.id}
-              onChange={(e) => setBranch(e.target.value)}
+              // Empty string represents "All branches" — stored as null
+              // in the auth store so the API calls omit branchId.
+              value={currentBranch?.id ?? ''}
+              onChange={(e) => setBranch(e.target.value || (null as any))}
             >
+              {canSeeAllBranches && (
+                <option value="">
+                  {t('header.allBranches', { defaultValue: 'All branches' })}
+                </option>
+              )}
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           )}

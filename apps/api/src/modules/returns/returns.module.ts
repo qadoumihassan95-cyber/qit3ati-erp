@@ -4,6 +4,7 @@ import { ArrayMinSize, IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsStrin
 import { PrismaService } from '../../prisma/prisma.service';
 import { Tenant, Permissions } from '../../common/decorators/tenant.decorator';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
+import { BranchAccessService } from '../../common/branch-access/branch-access.service';
 
 class ReturnItemDto {
   @IsString() partId!: string;
@@ -151,9 +152,13 @@ class ReturnsService {
     });
   }
 
-  list(tenantId: string, branchId?: string) {
+  list(tenantId: string, scope?: string | string[] | null) {
+    const branchFilter =
+      scope == null       ? {} :
+      Array.isArray(scope) ? { branchId: { in: scope } } :
+                             { branchId: scope };
     return this.prisma.salesReturn.findMany({
-      where: { tenantId, ...(branchId ? { branchId } : {}) },
+      where: { tenantId, ...branchFilter },
       include: {
         items: { include: { part: { select: { id: true, sku: true, name: true } } } },
         invoice: { select: { id: true, invoiceNo: true } },
@@ -180,23 +185,30 @@ class ReturnsService {
 
 @Controller('returns/sales')
 class SalesReturnsController {
-  constructor(private readonly svc: ReturnsService) {}
+  constructor(
+    private readonly svc: ReturnsService,
+    private readonly branchAccess: BranchAccessService,
+  ) {}
 
   @Get()
   @Permissions('sales.view')
-  list(@Tenant() tid: string, @Query('branchId') branchId?: string) {
-    return this.svc.list(tid, branchId);
+  async list(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Query('branchId') branchId?: string) {
+    const scope = await this.branchAccess.scope(u, tid, branchId);
+    return this.svc.list(tid, scope);
   }
 
   @Get(':id')
   @Permissions('sales.view')
-  one(@Tenant() tid: string, @Param('id') id: string) {
-    return this.svc.findOne(tid, id);
+  async one(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Param('id') id: string) {
+    const ret = await this.svc.findOne(tid, id);
+    if (ret?.branchId) await this.branchAccess.assertWrite(u, tid, ret.branchId);
+    return ret;
   }
 
   @Post()
   @Permissions('sales.cancel')
-  create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateSalesReturnDto) {
+  async create(@Tenant() tid: string, @CurrentUser() u: JwtUser, @Body() d: CreateSalesReturnDto) {
+    await this.branchAccess.assertWrite(u, tid, d.branchId);
     return this.svc.create(tid, u.sub, d);
   }
 }
