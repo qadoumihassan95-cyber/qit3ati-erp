@@ -1708,6 +1708,7 @@ model FifoConsumption {
   lineCost     Decimal  @map("line_cost")   @db.Decimal(14, 3)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
   fifoLayer FifoLayer @relation(fields: [fifoLayerId], references: [id])
   salesItem SalesItem @relation(fields: [salesItemId], references: [id], onDelete: Cascade)
 
