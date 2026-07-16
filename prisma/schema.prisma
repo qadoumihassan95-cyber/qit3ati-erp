@@ -884,12 +884,12 @@ model SalesInvoice {
   jofotaraError       String?        @map("jofotara_error")
   jofotaraSubmittedAt DateTime?      @map("jofotara_submitted_at") @db.Timestamptz
   jofotaraXml         String?        @map("jofotara_xml")  // last sent UBL XML (for debug/replay)
-  /**
-   * If this invoice was auto-generated from a workshop job card
-   * (via the "Complete + convert to invoice" flow), this points
-   * back to the source card for full traceability. Nullable so
-   * POS/normal sales continue to work unchanged.
-   */
+  ///
+/// If this invoice was auto-generated from a workshop job card
+/// (via the "Complete + convert to invoice" flow), this points
+/// back to the source card for full traceability. Nullable so
+/// POS/normal sales continue to work unchanged.
+///
   jobCardId     String?      @unique @map("job_card_id") @db.Uuid
   soldBy        String?      @map("sold_by") @db.Uuid
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
@@ -1571,17 +1571,17 @@ model TelegramLink {
 // Telegram Bot Integration (extends the pre-existing TelegramLink)
 // =====================================================================
 
-/**
- * Persistent conversation state per Telegram chat. Multi-step flows
- * (e.g. "record expense" → asks for category, branch, amount) survive
- * server restarts by keeping their state here rather than in memory.
- */
+///
+/// Persistent conversation state per Telegram chat. Multi-step flows
+/// (e.g. "record expense" → asks for category, branch, amount) survive
+/// server restarts by keeping their state here rather than in memory.
+///
 model TelegramConversation {
   id             String   @id @default(uuid()) @db.Uuid
   telegramChatId String   @unique @map("telegram_chat_id") @db.VarChar(40)
-  /** Current pending flow (e.g. 'expense.awaiting_category'). null = idle. */
+  /// Current pending flow (e.g. 'expense.awaiting_category'). null = idle.
   state          String?  @db.VarChar(80)
-  /** Free-form context — collected fields, last intent, etc. */
+  /// Free-form context — collected fields, last intent, etc.
   context        Json     @default("{}")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -1589,27 +1589,27 @@ model TelegramConversation {
   @@map("telegram_conversations")
 }
 
-/**
- * Full audit trail of every incoming Telegram message we processed.
- * Used for security review, debugging, and abuse detection.
- */
+///
+/// Full audit trail of every incoming Telegram message we processed.
+/// Used for security review, debugging, and abuse detection.
+///
 model TelegramCommandLog {
   id             BigInt   @id @default(autoincrement())
   tenantId       String?  @map("tenant_id") @db.Uuid
   userId         String?  @map("user_id") @db.Uuid
   telegramChatId String   @map("telegram_chat_id") @db.VarChar(40)
   telegramUserId String?  @map("telegram_user_id") @db.VarChar(40)
-  /** Detected intent (e.g. 'expense.create', 'report.sales.today'). */
+  /// Detected intent (e.g. 'expense.create', 'report.sales.today').
   intent         String?  @db.VarChar(60)
-  /** Raw text sent by the user (truncated). */
+  /// Raw text sent by the user (truncated).
   rawText        String?  @map("raw_text") @db.VarChar(500)
-  /** Extracted arguments as JSON (amounts, dates, etc.). */
+  /// Extracted arguments as JSON (amounts, dates, etc.).
   args           Json?
-  /** 'ok' | 'denied' | 'error' | 'pending' */
+  /// 'ok' | 'denied' | 'error' | 'pending'
   result         String   @db.VarChar(20)
-  /** Human-readable message returned to the user (truncated). */
+  /// Human-readable message returned to the user (truncated).
   reply          String?  @db.VarChar(500)
-  /** Optional linked entity (expense.id, invoice.id, …). */
+  /// Optional linked entity (expense.id, invoice.id, …).
   entityType     String?  @map("entity_type") @db.VarChar(40)
   entityId       String?  @map("entity_id") @db.Uuid
   errorMessage   String?  @map("error_message") @db.VarChar(500)
@@ -1621,27 +1621,27 @@ model TelegramCommandLog {
   @@map("telegram_command_log")
 }
 
-/**
- * Notification subscriptions. A user can opt-in to receive scheduled
- * summaries (daily/weekly) and real-time alerts (low stock, big
- * expense, negative cash) at chosen times.
- */
+///
+/// Notification subscriptions. A user can opt-in to receive scheduled
+/// summaries (daily/weekly) and real-time alerts (low stock, big
+/// expense, negative cash) at chosen times.
+///
 model TelegramSubscription {
   id             String   @id @default(uuid()) @db.Uuid
   tenantId       String   @map("tenant_id") @db.Uuid
   userId         String   @map("user_id") @db.Uuid
   telegramChatId String   @map("telegram_chat_id") @db.VarChar(40)
-  /** 'daily_summary' | 'weekly_summary' | 'low_stock' | 'big_expense' | 'overdue_receivable' | 'due_cheque' */
+  /// 'daily_summary' | 'weekly_summary' | 'low_stock' | 'big_expense' | 'overdue_receivable' | 'due_cheque'
   kind           String   @db.VarChar(40)
-  /** For scheduled kinds: HH:MM in tenant timezone. */
+  /// For scheduled kinds: HH:MM in tenant timezone.
   scheduleAt     String?  @map("schedule_at") @db.VarChar(5)
-  /** Comma-separated: 'mon,tue,wed,thu,fri,sat,sun'. Empty = all days. */
+  /// Comma-separated: 'mon,tue,wed,thu,fri,sat,sun'. Empty = all days.
   scheduleDays   String?  @map("schedule_days") @db.VarChar(30)
-  /** Optional branch restriction. */
+  /// Optional branch restriction.
   branchId       String?  @map("branch_id") @db.Uuid
-  /** Threshold amount for 'big_expense' etc. */
+  /// Threshold amount for 'big_expense' etc.
   threshold      Decimal? @db.Decimal(14, 3)
-  /** Preferred language for this subscription's messages. */
+  /// Preferred language for this subscription's messages.
   language       String?  @db.VarChar(4)
   isActive       Boolean  @default(true) @map("is_active")
   lastFiredAt    DateTime? @map("last_fired_at") @db.Timestamptz
@@ -1657,22 +1657,22 @@ model TelegramSubscription {
 // costing so returned/damaged items don't distort profit).
 // =====================================================================
 
-/**
- * One cost layer per (purchase_item × branch). Records exactly how many
- * units are still available at that layer's cost. Sales walk layers by
- * `receivedAt ASC` and decrement `qtyRemaining`.
- *
- * We never delete layers even at qtyRemaining=0 — the row is the source
- * of truth for auditing which sale consumed what.
- */
+///
+/// One cost layer per (purchase_item × branch). Records exactly how many
+/// units are still available at that layer's cost. Sales walk layers by
+/// `receivedAt ASC` and decrement `qtyRemaining`.
+///
+/// We never delete layers even at qtyRemaining=0 — the row is the source
+/// of truth for auditing which sale consumed what.
+///
 model FifoLayer {
   id             String   @id @default(uuid()) @db.Uuid
   tenantId       String   @map("tenant_id") @db.Uuid
   branchId       String   @map("branch_id") @db.Uuid
   partId         String   @map("part_id") @db.Uuid
-  /** Source purchase-item (nullable for backfill/opening-balance layers). */
+  /// Source purchase-item (nullable for backfill/opening-balance layers).
   purchaseItemId String?  @unique @map("purchase_item_id") @db.Uuid
-  /** Backfill/opening-balance flag — set for layers without a purchase source. */
+  /// Backfill/opening-balance flag — set for layers without a purchase source.
   origin         String   @default("purchase") @db.VarChar(20)
   qtyReceived    Decimal  @map("qty_received")  @db.Decimal(12, 3)
   qtyRemaining   Decimal  @map("qty_remaining") @db.Decimal(12, 3)
@@ -1686,22 +1686,22 @@ model FifoLayer {
   purchaseItem PurchaseItem?      @relation(fields: [purchaseItemId], references: [id])
   consumptions FifoConsumption[]
 
-  /** Composite index used by the "next layer to consume" query. */
+  /// Composite index used by the "next layer to consume" query.
   @@index([tenantId, branchId, partId, receivedAt])
   @@index([tenantId, partId])
   @@map("fifo_layers")
 }
 
-/**
- * Per-sale-line audit trail of which FIFO layers were consumed and at
- * what cost. Makes profit calculations fully explainable.
- */
+///
+/// Per-sale-line audit trail of which FIFO layers were consumed and at
+/// what cost. Makes profit calculations fully explainable.
+///
 model FifoConsumption {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
-  /** The sale line that consumed the stock. */
+  /// The sale line that consumed the stock.
   salesItemId  String   @map("sales_item_id") @db.Uuid
-  /** The layer that was drawn from. */
+  /// The layer that was drawn from.
   fifoLayerId  String   @map("fifo_layer_id") @db.Uuid
   qty          Decimal  @db.Decimal(12, 3)
   unitCost     Decimal  @map("unit_cost")   @db.Decimal(12, 3)
