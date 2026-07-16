@@ -16,7 +16,7 @@ import {
   ArrowLeftRight, Menu, X, Users, Building2, Receipt,
   RotateCcw, FileBarChart, Building, Shield, FileCheck,
   Banknote, Landmark, FileText, GraduationCap, HelpCircle,
-  Send, ScanLine, Car, Hammer,
+  Send, ScanLine, Car, Hammer, ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
@@ -34,32 +34,39 @@ interface NavItem {
   labelKey:  string;
   icon:      LucideIcon;
   sectionKey?: string;
+  /**
+   * Permission code required to see this link. If omitted, the link
+   * is visible to every authenticated user. Owners and super-admins
+   * see everything regardless (matches backend semantics).
+   */
+  requires?: string;
 }
 
 const NAV: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, sectionKey: 'nav.section_main' },
-  { to: '/pos',       labelKey: 'nav.pos',       icon: ShoppingCart   },
-  { to: '/invoices',  labelKey: 'nav.invoices',  icon: FileText       },
-  { to: '/parts',     labelKey: 'nav.parts',     icon: Wrench,         sectionKey: 'nav.section_inventory' },
-  { to: '/parts/receive', labelKey: 'nav.receive', icon: ScanLine     },
-  { to: '/stock',     labelKey: 'nav.stock',     icon: Boxes          },
-  { to: '/purchases', labelKey: 'nav.purchases', icon: Truck          },
-  { to: '/transfers', labelKey: 'nav.transfers', icon: ArrowLeftRight },
-  { to: '/returns',   labelKey: 'nav.returns',   icon: RotateCcw      },
-  { to: '/customers', labelKey: 'nav.customers', icon: Users,          sectionKey: 'nav.section_relations' },
-  { to: '/suppliers', labelKey: 'nav.suppliers', icon: Building2      },
-  { to: '/vehicles',  labelKey: 'nav.vehicles',  icon: Car,            sectionKey: 'nav.section_workshop' },
-  { to: '/workshop',  labelKey: 'nav.workshop',  icon: Hammer         },
-  { to: '/expenses',  labelKey: 'nav.expenses',  icon: Receipt,        sectionKey: 'nav.section_finance' },
-  { to: '/cheques',   labelKey: 'nav.cheques',   icon: Banknote       },
-  { to: '/jofotara',  labelKey: 'nav.jofotara',  icon: Landmark       },
-  { to: '/reports',   labelKey: 'nav.reports',   icon: FileBarChart   },
-  { to: '/branches',  labelKey: 'nav.branches',  icon: Building,       sectionKey: 'nav.section_admin' },
-  { to: '/papers',    labelKey: 'nav.papers',    icon: FileCheck      },
-  { to: '/audit',     labelKey: 'nav.audit',     icon: Shield         },
-  { to: '/settings/telegram', labelKey: 'nav.telegram', icon: Send        },
-  { to: '/settings',  labelKey: 'nav.settings',  icon: SettingsIcon   },
-  { to: '/training',  labelKey: 'nav.training',  icon: GraduationCap,  sectionKey: 'nav.section_help' },
+  { to: '/pos',       labelKey: 'nav.pos',       icon: ShoppingCart,    requires: 'sales.create' },
+  { to: '/invoices',  labelKey: 'nav.invoices',  icon: FileText,        requires: 'sales.view'   },
+  { to: '/parts',     labelKey: 'nav.parts',     icon: Wrench,          sectionKey: 'nav.section_inventory', requires: 'parts.view' },
+  { to: '/parts/receive', labelKey: 'nav.receive', icon: ScanLine,      requires: 'purchase.create' },
+  { to: '/stock',     labelKey: 'nav.stock',     icon: Boxes,           requires: 'stock.view' },
+  { to: '/purchases', labelKey: 'nav.purchases', icon: Truck,           requires: 'purchase.view' },
+  { to: '/transfers', labelKey: 'nav.transfers', icon: ArrowLeftRight,  requires: 'stock.view' },
+  { to: '/returns',   labelKey: 'nav.returns',   icon: RotateCcw,       requires: 'sales.view' },
+  { to: '/customers', labelKey: 'nav.customers', icon: Users,           sectionKey: 'nav.section_relations', requires: 'sales.view' },
+  { to: '/suppliers', labelKey: 'nav.suppliers', icon: Building2,       requires: 'purchase.view' },
+  { to: '/vehicles',  labelKey: 'nav.vehicles',  icon: Car,             sectionKey: 'nav.section_workshop', requires: 'workshop.view' },
+  { to: '/workshop',  labelKey: 'nav.workshop',  icon: Hammer,          requires: 'workshop.view' },
+  { to: '/expenses',  labelKey: 'nav.expenses',  icon: Receipt,         sectionKey: 'nav.section_finance', requires: 'accounting.view' },
+  { to: '/cheques',   labelKey: 'nav.cheques',   icon: Banknote,        requires: 'cheques.view' },
+  { to: '/jofotara',  labelKey: 'nav.jofotara',  icon: Landmark,        requires: 'jofotara.view' },
+  { to: '/reports',   labelKey: 'nav.reports',   icon: FileBarChart,    requires: 'accounting.view' },
+  { to: '/branches',  labelKey: 'nav.branches',  icon: Building,        sectionKey: 'nav.section_admin', requires: 'settings.edit' },
+  { to: '/admin/roles', labelKey: 'nav.roles',   icon: ShieldCheck,     requires: 'users.manage' },
+  { to: '/papers',    labelKey: 'nav.papers',    icon: FileCheck,       requires: 'documents.view' },
+  { to: '/audit',     labelKey: 'nav.audit',     icon: Shield,          requires: 'audit.view' },
+  { to: '/settings/telegram', labelKey: 'nav.telegram', icon: Send,     requires: 'settings.edit' },
+  { to: '/settings',  labelKey: 'nav.settings',  icon: SettingsIcon,    requires: 'settings.edit' },
+  { to: '/training',  labelKey: 'nav.training',  icon: GraduationCap,   sectionKey: 'nav.section_help' },
   { to: '/help',      labelKey: 'nav.help',      icon: HelpCircle     },
 ];
 
@@ -184,7 +191,17 @@ export default function Layout() {
           </button>
         </div>
         <nav className="space-y-0.5">
-          {NAV.map(({ to, labelKey, icon: Icon, sectionKey }) => (
+          {NAV
+            // Owners see everything; non-owners only see links whose
+            // `requires` permission they hold. Links with no `requires`
+            // are visible to every authenticated user.
+            .filter((item) => {
+              if (!item.requires) return true;
+              const isOwner = !!(user as any)?.isSuperAdmin || (user?.permissions ?? []).includes('branches.view_all');
+              if (isOwner) return true;
+              return (user?.permissions ?? []).includes(item.requires);
+            })
+            .map(({ to, labelKey, icon: Icon, sectionKey }) => (
             <div key={to}>
               {sectionKey && (
                 <div className="text-white/50 text-[10px] font-extrabold uppercase tracking-wider mt-3 mb-1.5 px-2">

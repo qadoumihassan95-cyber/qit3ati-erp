@@ -34,6 +34,7 @@ import { TelegramModule }  from './modules/telegram/telegram.module';
 import { FifoModule }      from './modules/fifo/fifo.module';
 import { VehiclesModule }  from './modules/vehicles/vehicles.module';
 import { WorkshopModule }  from './modules/workshop/workshop.module';
+import { RolesModule }     from './modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { WorkshopModule }  from './modules/workshop/workshop.module';
     FifoModule,
     VehiclesModule,
     WorkshopModule,
+    RolesModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

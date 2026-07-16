@@ -112,7 +112,8 @@
     "audit": "Audit Log",
     "settings": "Settings & Branding",
     "vehicles": "Vehicles",
-    "workshop": "Workshop"
+    "workshop": "Workshop",
+    "roles": "Roles & Permissions"
   },
   "header": {
     "openMenu": "Open menu",
