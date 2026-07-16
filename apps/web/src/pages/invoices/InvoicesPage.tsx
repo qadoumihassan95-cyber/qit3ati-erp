@@ -6,6 +6,7 @@ import { fmtMoney, fmtDate, errMsg } from '@/lib/format';
 import { Printer, Send, RefreshCw, FileCode, Eye, AlertCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useTranslation } from 'react-i18next';
+import ProfitBreakdown from './ProfitBreakdown';
 
 type JofotaraStatus = 'not_sent' | 'queued' | 'sent' | 'accepted' | 'rejected' | 'failed' | 'needs_resubmit';
 
@@ -228,6 +229,9 @@ export default function InvoicesPage() {
                 )}
               </div>
             )}
+
+            {/* Profit breakdown — how COGS + gross profit were computed */}
+            <ProfitBreakdown invoiceId={detail.id} />
           </div>
         )}
       </Modal>

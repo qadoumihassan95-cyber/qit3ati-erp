@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { FifoService } from '../fifo/fifo.module';
 
 export interface CartItem {
   partId: string;
@@ -22,7 +23,10 @@ export interface CreateSaleInput {
 export class SalesService {
   private readonly logger = new Logger(SalesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fifo: FifoService,
+  ) {}
 
   async createSale(tenantId: string, soldBy: string, input: CreateSaleInput) {
     if (!input.items?.length) throw new BadRequestException('السلّة فارغة');
@@ -144,6 +148,32 @@ export class SalesService {
         await tx.stockMovement.create({
           data: { ...movements[i]!, refTable: 'sales_invoices', refId: invoice.id },
         });
+
+        // ── FIFO: consume oldest cost layers for this sale line ──
+        // Records FifoConsumption rows tying this SalesItem to the exact
+        // purchase batches it drew from — enables per-invoice profit
+        // breakdown ("How was this calculated?" in the UI).
+        const persistedItem = invoice.items[i];
+        const part = byId.get(it.partId)!;
+        if (persistedItem) {
+          const result = await this.fifo.consumeForSale(tx, {
+            tenantId,
+            branchId: input.branchId,
+            partId: it.partId,
+            salesItemId: persistedItem.id,
+            qty: Number(it.qty),
+            fallbackUnitCost: Number(part.avgCost),
+          });
+          // Refine the unit_cost stored on the SalesItem with the actual
+          // FIFO-weighted cost so downstream reports (profitability,
+          // gross margin) are accurate rather than a rough avgCost snapshot.
+          if (result.layers.length > 0 && Math.abs(result.weightedUnitCost - Number(persistedItem.unitCost ?? 0)) > 0.001) {
+            await tx.salesItem.update({
+              where: { id: persistedItem.id },
+              data:  { unitCost: result.weightedUnitCost },
+            });
+          }
+        }
       }
 
       // customer balance update for credit sales

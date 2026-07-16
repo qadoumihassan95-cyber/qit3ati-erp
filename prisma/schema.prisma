@@ -247,6 +247,8 @@ model Tenant {
   cheques          Cheque[]
   jofotaraConfig   JofotaraConfig?
   jofotaraSubmissions JofotaraSubmission[]
+  fifoLayers       FifoLayer[]
+  fifoConsumptions FifoConsumption[]
 
   @@map("tenants")
 }
@@ -310,6 +312,7 @@ model Branch {
   officialPapers   OfficialPaper[]
   cheques          Cheque[]
 
+  fifoLayers FifoLayer[]
   @@index([tenantId])
   @@map("branches")
 }
@@ -542,6 +545,7 @@ model Part {
   damagedItems  DamagedItem[]
   warranties    Warranty[]
 
+  fifoLayers FifoLayer[]
   @@unique([tenantId, sku])
   @@index([tenantId])
   @@index([tenantId, partNumber, oemNumber, barcode])
@@ -824,6 +828,7 @@ model PurchaseItem {
   invoice PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   part    Part?           @relation(fields: [partId], references: [id])
 
+  fifoLayer FifoLayer?
   @@map("purchase_items")
 }
 
@@ -901,6 +906,7 @@ model SalesItem {
   part       Part?        @relation(fields: [partId], references: [id])
   warranties Warranty[]
 
+  fifoConsumptions FifoConsumption[]
   @@map("sales_items")
 }
 
@@ -1625,4 +1631,68 @@ model TelegramSubscription {
   @@index([tenantId, kind, isActive])
   @@index([telegramChatId])
   @@map("telegram_subscriptions")
+}
+
+// =====================================================================
+// FIFO cost layers (auto-parts stores need per-branch, per-purchase
+// costing so returned/damaged items don't distort profit).
+// =====================================================================
+
+/**
+ * One cost layer per (purchase_item × branch). Records exactly how many
+ * units are still available at that layer's cost. Sales walk layers by
+ * `receivedAt ASC` and decrement `qtyRemaining`.
+ *
+ * We never delete layers even at qtyRemaining=0 — the row is the source
+ * of truth for auditing which sale consumed what.
+ */
+model FifoLayer {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  partId         String   @map("part_id") @db.Uuid
+  /** Source purchase-item (nullable for backfill/opening-balance layers). */
+  purchaseItemId String?  @unique @map("purchase_item_id") @db.Uuid
+  /** Backfill/opening-balance flag — set for layers without a purchase source. */
+  origin         String   @default("purchase") @db.VarChar(20)
+  qtyReceived    Decimal  @map("qty_received")  @db.Decimal(12, 3)
+  qtyRemaining   Decimal  @map("qty_remaining") @db.Decimal(12, 3)
+  unitCost       Decimal  @map("unit_cost")     @db.Decimal(12, 3)
+  receivedAt     DateTime @map("received_at")   @db.Timestamptz
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  branch       Branch             @relation(fields: [branchId], references: [id])
+  part         Part               @relation(fields: [partId], references: [id])
+  purchaseItem PurchaseItem?      @relation(fields: [purchaseItemId], references: [id])
+  consumptions FifoConsumption[]
+
+  /** Composite index used by the "next layer to consume" query. */
+  @@index([tenantId, branchId, partId, receivedAt])
+  @@index([tenantId, partId])
+  @@map("fifo_layers")
+}
+
+/**
+ * Per-sale-line audit trail of which FIFO layers were consumed and at
+ * what cost. Makes profit calculations fully explainable.
+ */
+model FifoConsumption {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  /** The sale line that consumed the stock. */
+  salesItemId  String   @map("sales_item_id") @db.Uuid
+  /** The layer that was drawn from. */
+  fifoLayerId  String   @map("fifo_layer_id") @db.Uuid
+  qty          Decimal  @db.Decimal(12, 3)
+  unitCost     Decimal  @map("unit_cost")   @db.Decimal(12, 3)
+  lineCost     Decimal  @map("line_cost")   @db.Decimal(14, 3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  fifoLayer FifoLayer @relation(fields: [fifoLayerId], references: [id])
+  salesItem SalesItem @relation(fields: [salesItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, salesItemId])
+  @@index([fifoLayerId])
+  @@map("fifo_consumptions")
 }

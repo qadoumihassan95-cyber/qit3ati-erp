@@ -30,6 +30,7 @@ import { ChequesModule }   from './modules/cheques/cheques.module';
 import { JofotaraModule }  from './modules/jofotara/jofotara.module';
 import { SearchModule }    from './modules/search/search.module';
 import { TelegramModule }  from './modules/telegram/telegram.module';
+import { FifoModule }      from './modules/fifo/fifo.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { TelegramModule }  from './modules/telegram/telegram.module';
     JofotaraModule,
     SearchModule,
     TelegramModule,
+    FifoModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

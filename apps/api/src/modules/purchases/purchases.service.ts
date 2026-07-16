@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { FifoService } from '../fifo/fifo.module';
 
 export interface PurchaseItemInput {
   partId: string;
@@ -21,7 +22,10 @@ export interface CreatePurchaseInput {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fifo: FifoService,
+  ) {}
 
   /**
    * Atomic purchase creation:
@@ -173,6 +177,23 @@ export class PurchasesService {
             refId: invoice.id,
           },
         });
+
+        // ── FIFO: create a cost layer for this receipt ──
+        // Match by (partId, qty, unitCost) — invoice.items were created via
+        // `items: { create: [...] }` in the same order, so each purchase row
+        // maps to exactly one persisted PurchaseItem.
+        const persistedItem = invoice.items[i];
+        if (persistedItem) {
+          await this.fifo.createLayer(tx, {
+            tenantId,
+            branchId: input.branchId,
+            partId: it.partId,
+            purchaseItemId: persistedItem.id,
+            qty: it.qty,
+            unitCost: it.unitCost,
+            receivedAt: invoice.invoiceDate ?? invoice.createdAt,
+          });
+        }
       }
 
       // Update supplier balance for credit purchases
