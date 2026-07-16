@@ -20,6 +20,7 @@ const SYSTEM_ROLES = [
   { name: 'warehouse',      labelAr: 'أمين مستودع' },
   { name: 'cashier',        labelAr: 'بائع/كاشير' },
   { name: 'viewer',         labelAr: 'مشاهد' },
+  { name: 'workshop',       labelAr: 'فني ورشة / مستشار خدمة' },
 ];
 
 // ---------- System permissions (extend as you build new modules) ----------
@@ -63,6 +64,14 @@ const PERMISSIONS: Array<{ code: string; module: string; labelAr: string }> = [
   { code: 'jofotara.view',    module: 'finance', labelAr: 'عرض الفوترة الإلكترونية JoFotara' },
   { code: 'jofotara.send',    module: 'finance', labelAr: 'إرسال الفواتير إلى JoFotara' },
   { code: 'jofotara.config',  module: 'admin',   labelAr: 'إعدادات الربط مع JoFotara' },
+  // Workshop (vehicles + job cards / repair orders)
+  { code: 'workshop.view',    module: 'workshop', labelAr: 'عرض الورشة والمركبات' },
+  { code: 'workshop.create',  module: 'workshop', labelAr: 'إنشاء بطاقة عمل ومركبة جديدة' },
+  { code: 'workshop.edit',    module: 'workshop', labelAr: 'تعديل بطاقات العمل والقطع والعمالة' },
+  { code: 'workshop.close',   module: 'workshop', labelAr: 'إغلاق بطاقة العمل وتحويلها لفاتورة' },
+  // Multi-branch — grants the "All branches" view to trusted managers
+  // even if they are not super-admin (mirrors what the frontend checks).
+  { code: 'branches.view_all', module: 'admin',  labelAr: 'رؤية بيانات جميع الفروع' },
 ];
 
 // Permission bundles per role
@@ -74,13 +83,17 @@ const ROLE_PERMS: Record<string, string[]> = {
     'parts.view','price.edit','stock.view','stock.adjust','transfer.create',
     'purchase.view','purchase.create','accounting.view',
     'documents.view','cheques.view',
+    'workshop.view','workshop.create','workshop.edit','workshop.close',
   ],
   accountant: ['accounting.view','accounting.entry','sales.view','purchase.view','stock.view','cost.view',
                'documents.view','documents.manage','cheques.view','cheques.manage','cheques.collect',
                'jofotara.view','jofotara.send'],
   warehouse:  ['stock.view','stock.adjust','transfer.create','parts.view'],
   cashier:    ['sales.view','sales.create','parts.view','stock.view'],
-  viewer:     ['sales.view','parts.view','stock.view','accounting.view','documents.view','cheques.view'],
+  viewer:     ['sales.view','parts.view','stock.view','accounting.view','documents.view','cheques.view','workshop.view'],
+  // Dedicated workshop role — service advisor / mechanic.
+  workshop:   ['workshop.view','workshop.create','workshop.edit','workshop.close',
+               'parts.view','stock.view','sales.view'],
 };
 
 // ---------- Demo catalog ----------

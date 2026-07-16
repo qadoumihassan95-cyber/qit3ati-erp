@@ -86,6 +86,7 @@
     "section_inventory": "المخزون",
     "section_relations": "العلاقات",
     "section_finance": "المال",
+    "section_workshop": "الورشة",
     "section_admin": "الإدارة",
     "section_help": "المساعدة والتدريب",
     "training": "وضع التدريب",
@@ -109,7 +110,9 @@
     "branches": "الفروع",
     "papers": "الأوراق الرسمية",
     "audit": "سجل التدقيق",
-    "settings": "الإعدادات والهوية"
+    "settings": "الإعدادات والهوية",
+    "vehicles": "المركبات",
+    "workshop": "الورشة"
   },
   "header": {
     "openMenu": "فتح القائمة",

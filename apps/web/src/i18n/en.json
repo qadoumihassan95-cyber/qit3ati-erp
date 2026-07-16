@@ -86,6 +86,7 @@
     "section_inventory": "Inventory",
     "section_relations": "Relations",
     "section_finance": "Finance",
+    "section_workshop": "Workshop",
     "section_admin": "Admin",
     "section_help": "Help & Training",
     "training": "Training Mode",
@@ -109,7 +110,9 @@
     "branches": "Branches",
     "papers": "Official Papers",
     "audit": "Audit Log",
-    "settings": "Settings & Branding"
+    "settings": "Settings & Branding",
+    "vehicles": "Vehicles",
+    "workshop": "Workshop"
   },
   "header": {
     "openMenu": "Open menu",

@@ -32,6 +32,8 @@ import { JofotaraModule }  from './modules/jofotara/jofotara.module';
 import { SearchModule }    from './modules/search/search.module';
 import { TelegramModule }  from './modules/telegram/telegram.module';
 import { FifoModule }      from './modules/fifo/fifo.module';
+import { VehiclesModule }  from './modules/vehicles/vehicles.module';
+import { WorkshopModule }  from './modules/workshop/workshop.module';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { FifoModule }      from './modules/fifo/fifo.module';
     SearchModule,
     TelegramModule,
     FifoModule,
+    VehiclesModule,
+    WorkshopModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

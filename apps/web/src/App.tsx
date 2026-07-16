@@ -29,6 +29,8 @@ import HelpCenterPage from '@/pages/help/HelpCenterPage';
 import TrainingPage from '@/pages/training/TrainingPage';
 import TelegramSettingsPage from '@/pages/settings/TelegramSettingsPage';
 import BarcodeReceivingPage from '@/pages/parts/BarcodeReceivingPage';
+import VehiclesPage from '@/pages/vehicles/VehiclesPage';
+import WorkshopPage from '@/pages/workshop/WorkshopPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -54,6 +56,8 @@ export default function App() {
           <Route path="pos"          element={<PosPage />} />
           <Route path="parts"        element={<PartsPage />} />
           <Route path="parts/receive" element={<BarcodeReceivingPage />} />
+          <Route path="vehicles"     element={<VehiclesPage />} />
+          <Route path="workshop"     element={<WorkshopPage />} />
           <Route path="stock"        element={<StockPage />} />
           <Route path="purchases"    element={<PurchasesPage />} />
           <Route path="transfers"    element={<TransfersPage />} />

@@ -16,7 +16,7 @@ import {
   ArrowLeftRight, Menu, X, Users, Building2, Receipt,
   RotateCcw, FileBarChart, Building, Shield, FileCheck,
   Banknote, Landmark, FileText, GraduationCap, HelpCircle,
-  Send, ScanLine,
+  Send, ScanLine, Car, Hammer,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
@@ -46,6 +46,8 @@ const NAV: NavItem[] = [
   { to: '/returns',   labelKey: 'nav.returns',   icon: RotateCcw      },
   { to: '/customers', labelKey: 'nav.customers', icon: Users,          sectionKey: 'nav.section_relations' },
   { to: '/suppliers', labelKey: 'nav.suppliers', icon: Building2      },
+  { to: '/vehicles',  labelKey: 'nav.vehicles',  icon: Car,            sectionKey: 'nav.section_workshop' },
+  { to: '/workshop',  labelKey: 'nav.workshop',  icon: Hammer         },
   { to: '/expenses',  labelKey: 'nav.expenses',  icon: Receipt,        sectionKey: 'nav.section_finance' },
   { to: '/cheques',   labelKey: 'nav.cheques',   icon: Banknote       },
   { to: '/jofotara',  labelKey: 'nav.jofotara',  icon: Landmark       },
