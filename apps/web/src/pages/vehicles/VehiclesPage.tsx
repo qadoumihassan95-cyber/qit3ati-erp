@@ -99,8 +99,8 @@ export default function VehiclesPage() {
         ) : !vehicles?.length ? (
           <EmptyState
             icon={<Car className="text-muted" size={40} />}
-            title={t('vehicles.emptyTitle',    { defaultValue: 'لا توجد مركبات بعد' })}
-            hint={t('vehicles.emptyHint',      { defaultValue: 'أضف أول مركبة لبدء تتبع بطاقات الصيانة' })}
+            title={t('vehicles.emptyTitle',       { defaultValue: 'لا توجد مركبات بعد' }) as string}
+            description={t('vehicles.emptyHint',  { defaultValue: 'أضف أول مركبة لبدء تتبع بطاقات الصيانة' }) as string}
           />
         ) : (
           <div className="overflow-x-auto">

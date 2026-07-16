@@ -87,8 +87,8 @@ export default function WorkshopPage() {
       ) : (cards?.length ?? 0) === 0 ? (
         <EmptyState
           icon={<Wrench className="text-muted" size={40} />}
-          title={t('workshop.emptyTitle', { defaultValue: 'لا توجد بطاقات عمل' })}
-          hint ={t('workshop.emptyHint',  { defaultValue: 'ابدأ بإنشاء بطاقة عمل لعميل ومركبة' })}
+          title={t('workshop.emptyTitle',        { defaultValue: 'لا توجد بطاقات عمل' }) as string}
+          description={t('workshop.emptyHint',   { defaultValue: 'ابدأ بإنشاء بطاقة عمل لعميل ومركبة' }) as string}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">

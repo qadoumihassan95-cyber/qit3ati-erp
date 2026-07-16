@@ -63,6 +63,7 @@ export function useSwipeBack(opts: Options = {}) {
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
+      if (!t) return;                                       // TS strict — narrow Touch | undefined
       const w = window.innerWidth;
       // In RTL the "back gesture" swipes from the RIGHT edge leftward.
       // In LTR (English), from the LEFT edge rightward.
@@ -79,6 +80,7 @@ export function useSwipeBack(opts: Options = {}) {
       if (!tracking) return;
       tracking = false;
       const t = e.changedTouches[0];
+      if (!t) return;                                       // TS strict — narrow Touch | undefined
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
       if (dy > maxVerticalDrift) return;                   // it was a scroll

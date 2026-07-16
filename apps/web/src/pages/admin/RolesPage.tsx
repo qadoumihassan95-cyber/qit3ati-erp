@@ -71,7 +71,8 @@ export default function RolesPage() {
   });
 
   useEffect(() => {
-    if (!selectedId && roles.data?.length) setSelectedId(roles.data[0].id);
+    const first = roles.data?.[0];
+    if (!selectedId && first) setSelectedId(first.id);
   }, [roles.data, selectedId]);
 
   const filtered = useMemo(() => {
