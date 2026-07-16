@@ -120,6 +120,7 @@
     "logoutTitle": "تسجيل خروج",
     "branchSelector": "اختر الفرع",
     "allBranches": "جميع الفروع",
+    "moreMenu": "المزيد",
     "searchPlaceholder": "ابحث في كل النظام — عملاء، أصناف، فواتير، شيكات...",
     "languageSwitchTo": "تبديل إلى {{lang}}"
   },

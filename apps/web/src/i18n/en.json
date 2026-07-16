@@ -120,6 +120,7 @@
     "logoutTitle": "Sign out",
     "branchSelector": "Select branch",
     "allBranches": "All branches",
+    "moreMenu": "More",
     "searchPlaceholder": "Search anything — customers, parts, invoices, cheques…",
     "languageSwitchTo": "Switch to {{lang}}"
   },

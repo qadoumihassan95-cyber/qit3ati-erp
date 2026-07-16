@@ -22,8 +22,10 @@ import { useTranslation } from 'react-i18next';
 import GlobalSearch from '@/components/search/GlobalSearch';
 import LanguageSwitcher from '@/i18n/LanguageSwitcher';
 import NotificationsButton from '@/components/layout/NotificationsButton';
+import BottomNav from '@/components/layout/BottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
+import { useSwipeBack } from '@/hooks/useSwipeBack';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -102,13 +104,19 @@ export default function Layout() {
   useEffect(() => {
     const onOpen  = () => setDrawerOpen(true);
     const onClose = () => setDrawerOpen(false);
+    const onMore  = () => setDrawerOpen(true);      // BottomNav "More" tab
     window.addEventListener('tour:sidebar-open', onOpen);
     window.addEventListener('tour:sidebar-close', onClose);
+    window.addEventListener('mobile-nav:more', onMore);
     return () => {
       window.removeEventListener('tour:sidebar-open', onOpen);
       window.removeEventListener('tour:sidebar-close', onClose);
+      window.removeEventListener('mobile-nav:more', onMore);
     };
   }, []);
+
+  // iOS-style edge-swipe → back navigation. RTL/LTR aware.
+  useSwipeBack();
 
   const closeDrawer = () => setDrawerOpen(false);
   const currentBranch = branches.find((b) => b.id === branchId) ?? (branchId ? null : null);
@@ -146,6 +154,14 @@ export default function Layout() {
       {/* Sidebar */}
       <aside
         data-tour="sidebar"
+        style={{
+          // Respect the iPhone notch when the drawer is open on mobile,
+          // and match the header's inset on the leading edge so links
+          // don't butt against the rounded phone corner.
+          paddingTop:    'max(env(safe-area-inset-top),    1rem)',
+          paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+          [isRTL ? 'paddingRight' : 'paddingLeft']: 'max(env(safe-area-inset-' + (isRTL ? 'right' : 'left') + '), 1rem)',
+        }}
         className={
           'bg-gradient-to-b from-primary to-primary-dark text-white p-4 ' +
           `fixed ${drawerPositionClasses} w-[260px] z-50 transition-transform duration-200 ease-out overflow-y-auto ` +
@@ -193,7 +209,12 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="min-w-0">
-        <header className="bg-white border-b border-line p-3 sm:p-4 px-4 sm:px-7 flex items-center gap-3 sm:gap-5 sticky top-0 z-10">
+        <header
+          className="bg-white border-b border-line p-3 sm:p-4 px-4 sm:px-7
+                     flex items-center gap-3 sm:gap-5 sticky top-0 z-10 pt-safe"
+          style={{ paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
+                   paddingRight:'max(env(safe-area-inset-right),1rem)' }}
+        >
           {/* Mobile hamburger */}
           <button
             aria-label={t('header.openMenu')}
@@ -248,10 +269,17 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="p-3 sm:p-5 lg:p-7">
+        <main
+          className="p-3 sm:p-5 lg:p-7 pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-7"
+          style={{ paddingLeft: 'max(env(safe-area-inset-left), 0.75rem)',
+                   paddingRight:'max(env(safe-area-inset-right),0.75rem)' }}
+        >
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile-only bottom tab bar. Hidden on md+ (desktop keeps the sidebar). */}
+      <BottomNav />
     </div>
   );
 }

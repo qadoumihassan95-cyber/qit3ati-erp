@@ -5,13 +5,32 @@
 html, body, #root { height: 100%; }
 body {
   -webkit-font-smoothing: antialiased;
-  /* iOS Safari: respect the home-indicator + notch safe areas */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  /*
+   * Do NOT put padding on the body for safe-area — that breaks any
+   * position:sticky element (like the app header + POS floating cart)
+   * because a padded body pushes them down instead of letting them
+   * sit against the top edge and use their own inset padding.
+   * Individual surfaces (see .safe-*-* utilities below) opt in.
+   */
 }
 
-/* Floating UI (HelpButton, notification panel) never sits under the
-   iPhone home indicator. */
+/*
+ * Safe-area utilities. Prefer these classes over inline
+ * `style={{ paddingTop: 'env(...)' }}` — they compose with Tailwind's
+ * padding classes and are trivial to grep for.
+ */
+.safe-top    { padding-top:    env(safe-area-inset-top);    }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left);   }
+.safe-right  { padding-right:  env(safe-area-inset-right);  }
+/* Additive variants — add safe-area on top of existing padding. */
+.pt-safe { padding-top:    max(env(safe-area-inset-top),    0px); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+/* When a fixed bottom element sits above the home-indicator, use this
+   to add margin equal to the inset without collapsing internal padding. */
+.mb-safe { margin-bottom:  env(safe-area-inset-bottom); }
+
+/* Legacy catch-all for older float buttons — kept for back-compat. */
 .fixed[class*="bottom-"] { padding-bottom: env(safe-area-inset-bottom); }
 
 /* Momentum scrolling on iOS */

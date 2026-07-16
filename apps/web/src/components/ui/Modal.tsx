@@ -26,7 +26,12 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: P
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-      <div className={'bg-white w-full ' + w + ' rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto'}>
+      <div
+        className={'bg-white w-full ' + w + ' rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto'}
+        // On mobile the modal is a bottom sheet — respect the home
+        // indicator with padding-bottom equal to safe-area-inset-bottom.
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-line sticky top-0 bg-white z-10">
           <h2 className="text-base sm:text-lg font-extrabold">{title}</h2>
           <button onClick={onClose} aria-label="إغلاق"
