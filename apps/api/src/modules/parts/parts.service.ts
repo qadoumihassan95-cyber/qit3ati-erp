@@ -506,7 +506,9 @@ export class PartsService {
       where: { tenantId, sku: { in: incomingSkus }, deletedAt: null },
       select: { id: true, sku: true },
     });
-    const existingMap = new Map(existingParts.map((p) => [p.sku, p.id]));
+    // Explicit type params — otherwise TS 5.4 infers Map<unknown, unknown>
+    // and .get() returns unknown, breaking downstream assignments.
+    const existingMap = new Map<string, string>(existingParts.map((p) => [p.sku, p.id]));
 
     // ---- pre-load suppliers (by name, lowercased) ----
     const incomingSupplierNames = Array.from(
@@ -516,7 +518,7 @@ export class PartsService {
       where: { tenantId, deletedAt: null },
       select: { id: true, name: true },
     });
-    const supplierByName = new Map(existingSuppliers.map((s) => [s.name.toLowerCase(), s.id]));
+    const supplierByName = new Map<string, string>(existingSuppliers.map((s) => [s.name.toLowerCase(), s.id]));
 
     // ---- pre-load branches (and their first warehouse) ----
     const branches = await this.prisma.branch.findMany({

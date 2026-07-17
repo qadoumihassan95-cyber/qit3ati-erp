@@ -12,7 +12,7 @@ import { URL } from 'node:url';
  * If the URL changes, just edit the constants below — no logic depends on
  * specific routes.
  */
-const ENDPOINTS = {
+const ENDPOINTS: Record<JofotaraEnvironment, string> = {
   sandbox:    'https://backend.sit.jofotara.gov.jo/core/invoices/',
   production: 'https://backend.jofotara.gov.jo/core/invoices/',
 };

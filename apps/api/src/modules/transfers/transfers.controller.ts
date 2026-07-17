@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsArray, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { TransfersService } from './transfers.service';
@@ -83,6 +83,10 @@ export class TransfersController {
     // Receiver must have access to the target branch (stock going IN).
     const t = await this.transfers.findOne(tid, id);
     if (!t) return null;
+    // Transfer.toBranch is nullable in the schema (String?); reject if
+    // the record is missing its target branch (would be an inconsistent
+    // row anyway) rather than crashing the narrow.
+    if (!t.toBranch)   throw new BadRequestException('transfer has no target branch');
     await this.branchAccess.assertWrite(user, tid, t.toBranch);
     return this.transfers.receive(tid, user.sub, id, dto.items);
   }
@@ -93,6 +97,7 @@ export class TransfersController {
     // Canceller must have access to the source branch (stock returning to it).
     const t = await this.transfers.findOne(tid, id);
     if (!t) return null;
+    if (!t.fromBranch) throw new BadRequestException('transfer has no source branch');
     await this.branchAccess.assertWrite(user, tid, t.fromBranch);
     return this.transfers.cancel(tid, user.sub, id);
   }

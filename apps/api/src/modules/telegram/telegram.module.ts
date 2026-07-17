@@ -499,9 +499,9 @@ class TelegramService implements OnModuleInit {
         createdAt: { gte: from, lte: to },
       },
       _count: true,
-      _sum: { totalAmount: true },
+      _sum: { total: true },
     });
-    const total = Number(agg._sum?.totalAmount ?? 0);
+    const total = Number(agg._sum?.total ?? 0);
     const count = agg._count;
     const label = { today: 'اليوم / Today', yesterday: 'أمس / Yesterday', week: 'الأسبوع / Week', month: 'الشهر / Month' }[period];
     const msg = lang === 'en'

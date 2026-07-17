@@ -144,7 +144,9 @@ export class PapersService {
       where: { tenantId, deletedAt: null },
       select: { id: true, expiresAt: true, statusOverride: true, type: true },
     });
-    const buckets = { active: 0, expiring_soon: 0, expired: 0, renewal_needed: 0, in_progress: 0 };
+    const buckets: Record<OfficialPaperStatus, number> = {
+      active: 0, expiring_soon: 0, expired: 0, renewal_needed: 0, in_progress: 0,
+    };
     for (const p of all) buckets[computePaperStatus(p)]++;
     return { total: all.length, byStatus: buckets };
   }
