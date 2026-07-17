@@ -101,11 +101,14 @@ class RolesService {
     const perms = await this.prisma.permission.findMany({
       orderBy: [{ module: 'asc' }, { code: 'asc' }],
     });
+    // Permission.module is String? in the schema — coerce null → 'other' so
+    // the group key is always a non-null string.
     const byModule = new Map<string, { code: string; module: string; labelAr: string | null }[]>();
     for (const p of perms) {
-      const bucket = byModule.get(p.module) ?? [];
-      bucket.push({ code: p.code, module: p.module, labelAr: p.labelAr });
-      byModule.set(p.module, bucket);
+      const mod = p.module ?? 'other';
+      const bucket = byModule.get(mod) ?? [];
+      bucket.push({ code: p.code, module: mod, labelAr: p.labelAr });
+      byModule.set(mod, bucket);
     }
     return Array.from(byModule.entries()).map(([module, items]) => ({ module, items }));
   }
