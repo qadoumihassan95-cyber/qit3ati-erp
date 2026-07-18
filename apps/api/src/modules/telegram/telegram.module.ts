@@ -312,15 +312,31 @@ class TelegramService implements OnModuleInit {
     const msg = update.message;
     if (!msg || !msg.text) return;
 
-    const chatId = String(msg.chat.id);
+    const chatId   = String(msg.chat.id);
     const tgUserId = msg.from ? String(msg.from.id) : null;
-    const text = msg.text;
+    const tgHandle = msg.from?.username ? '@' + msg.from.username : null;
+    const text     = msg.text;
 
     // Load or create the TelegramLink row for this chat
     const link = await this.prisma.telegramLink.findUnique({
       where: { telegramChatId: chatId },
       include: { user: { include: { tenant: true } } },
     });
+
+    // Enterprise upgrade: keep the link row's telegram identity + last
+    // activity in sync on every inbound message. Non-blocking — if the
+    // update fails we still process the intent so a naming glitch never
+    // breaks Reports/Sales commands.
+    if (link) {
+      this.prisma.telegramLink.update({
+        where: { id: link.id },
+        data:  {
+          telegramUserId:  tgUserId  ?? link.telegramUserId  ?? undefined,
+          telegramUsername: tgHandle ?? link.telegramUsername ?? undefined,
+          lastActivityAt:  new Date(),
+        },
+      }).catch(() => { /* best-effort — log-only, don't break flow */ });
+    }
 
     const intent = this.intents.parse(text);
 
@@ -830,11 +846,28 @@ class ApproveLinkDto {
 class TelegramAdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Generate a fresh 6-character link code for a user. Existing pending
-   *  codes for the same user are invalidated first. */
+  /**
+   * Generate a fresh 6-character link code for an employee.
+   *
+   * Enterprise rules enforced here:
+   *   - Employees can ONLY have one ACTIVE Telegram link at a time. If
+   *     they already have an active link, we return a 400 rather than
+   *     silently orphaning the old chat. Admins must disable/remove the
+   *     old link first (satisfies the "One employee can have only one
+   *     active Telegram account" requirement).
+   *   - Pending (not-yet-completed) codes for the same user are wiped
+   *     out first so the previous code becomes invalid.
+   */
   async createLinkCode(tenantId: string, userId: string) {
+    const active = await this.prisma.telegramLink.findFirst({
+      where: { tenantId, userId, isActive: true, telegramChatId: { not: null } },
+    });
+    if (active) {
+      throw new BadRequestException(
+        'هذا الموظف مربوط بالفعل بحساب تيليجرام نشط. عطّل الحساب الحالي أو احذفه قبل إصدار رمز جديد.',
+      );
+    }
     const code = this.randomCode();
-    // Invalidate any previous pending links for this user
     await this.prisma.telegramLink.deleteMany({
       where: { tenantId, userId, telegramChatId: null },
     });
@@ -844,26 +877,142 @@ class TelegramAdminService {
     return { id: link.id, code, expiresIn: '24 hours' };
   }
 
-  listLinks(tenantId: string) {
-    return this.prisma.telegramLink.findMany({
-      where: { tenantId },
-      include: { user: { select: { id: true, fullName: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
+  /**
+   * Rich list for the Management Center table.
+   * Every link is joined with:
+   *   - employee (fullName, email, phone)
+   *   - role name
+   *   - assigned branches (via UserBranch)
+   *   - last activity (from TelegramLink.lastActivityAt — kept in sync
+   *     by the webhook handler on every inbound message)
+   *
+   * Server-side filters:
+   *   - search   → matches employee name / email / Telegram username
+   *   - branchId → only employees assigned to that branch
+   *   - roleId   → only employees with that role
+   *   - status   → 'active' | 'disabled' | 'pending' (no chatId yet)
+   */
+  async listLinks(tenantId: string, filters: {
+    search?: string; branchId?: string; roleId?: string; status?: string;
+  } = {}) {
+    const links = await this.prisma.telegramLink.findMany({
+      where: {
+        tenantId,
+        ...(filters.status === 'active'   ? { isActive: true,  telegramChatId: { not: null } } : {}),
+        ...(filters.status === 'disabled' ? { isActive: false, telegramChatId: { not: null } } : {}),
+        ...(filters.status === 'pending'  ? { telegramChatId: null } : {}),
+        ...(filters.roleId   ? { user: { roleId: filters.roleId } } : {}),
+        ...(filters.branchId ? { user: { userBranches: { some: { branchId: filters.branchId } } } } : {}),
+        ...(filters.search   ? {
+          OR: [
+            { telegramUsername: { contains: filters.search, mode: 'insensitive' } },
+            { telegramChatId:   { contains: filters.search } },
+            { user: { fullName: { contains: filters.search, mode: 'insensitive' } } },
+            { user: { email:    { contains: filters.search, mode: 'insensitive' } } },
+          ],
+        } : {}),
+      },
+      include: {
+        user: {
+          select: {
+            id: true, fullName: true, email: true, phone: true,
+            role: { select: { id: true, name: true, labelAr: true } },
+            userBranches: { include: { branch: { select: { id: true, name: true } } } },
+          },
+        },
+      },
+      orderBy: [{ isActive: 'desc' }, { lastActivityAt: 'desc' }, { createdAt: 'desc' }],
     });
+    // Shape into a UI-friendly row
+    return links.map(l => ({
+      id:               l.id,
+      telegramChatId:   l.telegramChatId,
+      telegramUsername: l.telegramUsername,
+      telegramUserId:   l.telegramUserId,
+      linkCode:         l.linkCode,                    // present only for pending
+      isActive:         l.isActive,
+      status:           l.telegramChatId ? (l.isActive ? 'active' : 'disabled') : 'pending',
+      linkedAt:         l.telegramChatId ? l.createdAt : null,
+      createdAt:        l.createdAt,
+      lastActivityAt:   l.lastActivityAt,
+      employee: l.user ? {
+        id:       l.user.id,
+        name:     l.user.fullName,
+        email:    l.user.email,
+        phone:    l.user.phone,
+        role:     l.user.role ? (l.user.role.labelAr || l.user.role.name) : null,
+        roleId:   l.user.role?.id ?? null,
+        branches: l.user.userBranches.map(ub => ({ id: ub.branch.id, name: ub.branch.name })),
+      } : null,
+    }));
   }
 
-  async revoke(tenantId: string, linkId: string) {
-    const link = await this.prisma.telegramLink.findFirst({ where: { id: linkId, tenantId } });
-    if (!link) throw new NotFoundException('Link not found');
-    await this.prisma.telegramLink.update({ where: { id: linkId }, data: { isActive: false } });
-    return { ok: true };
+  /**
+   * KPI cards for the Management Center. Cheap — three counts + two
+   * MAX(timestamp)s in a single round trip.
+   */
+  async stats(tenantId: string) {
+    const [total, active, disabled, pending, mostRecent, syncMax] = await Promise.all([
+      this.prisma.telegramLink.count({ where: { tenantId } }),
+      this.prisma.telegramLink.count({ where: { tenantId, isActive: true,  telegramChatId: { not: null } } }),
+      this.prisma.telegramLink.count({ where: { tenantId, isActive: false, telegramChatId: { not: null } } }),
+      this.prisma.telegramLink.count({ where: { tenantId, telegramChatId: null } }),
+      this.prisma.telegramLink.aggregate({ where: { tenantId }, _max: { lastActivityAt: true } }),
+      this.prisma.telegramCommandLog.aggregate({ where: { tenantId }, _max: { createdAt: true } }),
+    ]);
+    return {
+      total, active, disabled, pending,
+      lastActivityAt: mostRecent._max.lastActivityAt,
+      lastCommandAt:  syncMax._max.createdAt,
+    };
   }
 
+  /**
+   * Toggle an existing link's active state without touching the chatId
+   * (so re-enabling later just resumes without asking for a new code).
+   */
   async setActive(tenantId: string, linkId: string, isActive: boolean) {
     const link = await this.prisma.telegramLink.findFirst({ where: { id: linkId, tenantId } });
     if (!link) throw new NotFoundException('Link not found');
     await this.prisma.telegramLink.update({ where: { id: linkId }, data: { isActive } });
+    return { ok: true, isActive };
+  }
+
+  /**
+   * SOFT revoke — disables, keeps the row. Preserves history.
+   * (Kept for backward compatibility with the existing DELETE endpoint.)
+   */
+  async revoke(tenantId: string, linkId: string) {
+    return this.setActive(tenantId, linkId, false);
+  }
+
+  /**
+   * HARD remove — deletes the row entirely. Command-log history remains
+   * (audit trail must survive individual account removal), but the
+   * Telegram chat can no longer authenticate against this tenant.
+   */
+  async hardRemove(tenantId: string, linkId: string) {
+    const link = await this.prisma.telegramLink.findFirst({ where: { id: linkId, tenantId } });
+    if (!link) throw new NotFoundException('Link not found');
+    await this.prisma.telegramLink.delete({ where: { id: linkId } });
     return { ok: true };
+  }
+
+  /**
+   * Per-link activity log — used by "View Activity" action to show the
+   * last N commands the specific chat/user ran.
+   */
+  async linkActivity(tenantId: string, linkId: string, limit = 50) {
+    const link = await this.prisma.telegramLink.findFirst({ where: { id: linkId, tenantId } });
+    if (!link) throw new NotFoundException('Link not found');
+    const where: any = { tenantId };
+    if (link.telegramChatId) where.telegramChatId = link.telegramChatId;
+    else if (link.userId)    where.userId         = link.userId;
+    return this.prisma.telegramCommandLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(200, limit),
+    });
   }
 
   commandLog(tenantId: string, limit = 100) {
@@ -892,22 +1041,62 @@ class TelegramAdminController {
     return this.svc.createLinkCode(tenantId, d.userId);
   }
 
+  /**
+   * Rich list endpoint used by the Telegram Management Center.
+   * Filters: ?q=…&branchId=…&roleId=…&status=active|disabled|pending
+   */
   @Get('links')
   @Permissions('users.manage')
-  listLinks(@Tenant() tenantId: string) {
-    return this.svc.listLinks(tenantId);
+  listLinks(
+    @Tenant() tenantId: string,
+    @Query('q')        q?: string,
+    @Query('branchId') branchId?: string,
+    @Query('roleId')   roleId?: string,
+    @Query('status')   status?: string,
+  ) {
+    return this.svc.listLinks(tenantId, { search: q, branchId, roleId, status });
   }
 
+  /** KPI counts + last activity — powers the four stat cards. */
+  @Get('stats')
+  @Permissions('users.manage')
+  stats(@Tenant() tenantId: string) {
+    return this.svc.stats(tenantId);
+  }
+
+  /**
+   * SOFT revoke (backward-compatible with the pre-upgrade DELETE):
+   * just flips isActive=false. Keeps the row so re-enabling later
+   * resumes without asking the employee for a new code.
+   */
   @Delete('links/:id')
   @Permissions('users.manage')
   revoke(@Tenant() tenantId: string, @Param('id') id: string) {
     return this.svc.revoke(tenantId, id);
   }
 
+  /**
+   * HARD remove — deletes the row entirely. Command-log history
+   * remains for audit. Used by the "Remove" button in the Management
+   * Center.
+   */
+  @Delete('links/:id/hard')
+  @Permissions('users.manage')
+  hardRemove(@Tenant() tenantId: string, @Param('id') id: string) {
+    return this.svc.hardRemove(tenantId, id);
+  }
+
   @Patch('links/:id')
   @Permissions('users.manage')
   setActive(@Tenant() tenantId: string, @Param('id') id: string, @Body() body: { isActive: boolean }) {
     return this.svc.setActive(tenantId, id, Boolean(body.isActive));
+  }
+
+  /** Per-link command history — used by "View Activity" action. */
+  @Get('links/:id/activity')
+  @Permissions('users.manage')
+  linkActivity(@Tenant() tenantId: string, @Param('id') id: string, @Query('limit') limit?: string) {
+    return this.svc.linkActivity(tenantId, id, limit ? Number(limit) : 50);
   }
 
   @Get('command-log')

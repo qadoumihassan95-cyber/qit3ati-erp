@@ -1553,13 +1553,21 @@ model JofotaraSubmission {
 }
 
 model TelegramLink {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  userId          String?  @map("user_id") @db.Uuid
-  telegramChatId  String?  @unique @map("telegram_chat_id") @db.VarChar(40)
-  linkCode        String?  @map("link_code") @db.VarChar(12)
-  isActive        Boolean  @default(false) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  userId            String?  @map("user_id") @db.Uuid
+  telegramChatId    String?  @unique @map("telegram_chat_id") @db.VarChar(40)
+  /// Telegram username (e.g. "@ahmed"), captured on first inbound message.
+  /// Nullable because private chats don't always expose one.
+  telegramUsername  String?  @map("telegram_username") @db.VarChar(60)
+  /// Numeric Telegram user id (from the "from" field of the message).
+  telegramUserId    String?  @map("telegram_user_id") @db.VarChar(40)
+  /// When the linked account last sent any message to the bot. Used by
+  /// the Management Center for the "Last Activity" column.
+  lastActivityAt    DateTime? @map("last_activity_at") @db.Timestamptz
+  linkCode          String?  @map("link_code") @db.VarChar(12)
+  isActive          Boolean  @default(false) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User?  @relation(fields: [userId], references: [id])
