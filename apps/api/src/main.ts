@@ -6,6 +6,17 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
+// ---------------------------------------------------------------------------
+// Global BigInt-safe JSON serialization.
+// Prisma models with `BigInt` id columns (e.g. TelegramCommandLog) blow up
+// on JSON.stringify because JS's default toJSON doesn't know how to
+// serialize BigInts. Registering a toJSON hook once at bootstrap makes
+// every downstream JSON.stringify (Nest response, third-party libs,
+// application code) coerce BigInts to strings — the standard convention
+// for wire-format BigInt values and safe for JavaScript consumers.
+// ---------------------------------------------------------------------------
+(BigInt.prototype as any).toJSON = function () { return this.toString(); };
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);
