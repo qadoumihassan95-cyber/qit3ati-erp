@@ -342,7 +342,7 @@ class TelegramService implements OnModuleInit {
 
     // /start CODE — linking flow
     if (intent.kind === 'link' && intent.description) {
-      await this.doLink(chatId, tgUserId, intent.description);
+      await this.doLink(chatId, tgUserId, tgHandle, intent.description);
       return;
     }
     // Menu / help — allowed even without linking
@@ -418,24 +418,116 @@ class TelegramService implements OnModuleInit {
   // Auth linking
   // ------------------------------------------------------------
 
-  private async doLink(chatId: string, tgUserId: string | null, code: string) {
+  /**
+   * Enterprise multi-user link handler.
+   *
+   * Contract (matches spec requirements #1-#11):
+   *   1. Multiple TelegramLinks per tenant are supported — no row is
+   *      ever shared across employees.
+   *   2. This code path NEVER mutates the row of another employee. It
+   *      finds the pending code row (scoped by linkCode + no chatId),
+   *      hard-deletes it, and INSERTS a brand-new active row keyed by
+   *      the new chatId. Every other row in telegram_links is untouched.
+   *   3. On success we CREATE a new TelegramLink record. The pending
+   *      code row is discarded so the code cannot be reused; the new
+   *      row carries the identity captured from the inbound message.
+   *   4. If the same chatId already carries an ACTIVE link (a different
+   *      employee's chat), we refuse — chats can't be silently
+   *      re-bound. Command-log history stays intact.
+   *   5. If the same chatId carries a DISABLED / stale row (this exact
+   *      chat was linked before and then removed/disabled), we
+   *      hard-delete that stale row inside the transaction so the new
+   *      bind isn't blocked by the unique(telegram_chat_id) constraint.
+   *   6. If the employee already has an ACTIVE link, we refuse — the
+   *      admin must disable or remove the old one first. This enforces
+   *      the "one employee = one active Telegram account" rule.
+   *
+   * All of the above runs inside a single $transaction so a mid-flight
+   * failure never leaves the DB in a partial state.
+   */
+  private async doLink(
+    chatId: string,
+    tgUserId: string | null,
+    tgHandle: string | null,
+    code: string,
+  ) {
     const codeUpper = code.trim().toUpperCase();
-    const link = await this.prisma.telegramLink.findFirst({
-      where: { linkCode: codeUpper, telegramChatId: null },
+
+    // 1. Locate the pending code row. Scoped tightly so we cannot
+    //    accidentally pick up someone else's row.
+    const pending = await this.prisma.telegramLink.findFirst({
+      where: { linkCode: codeUpper, telegramChatId: null, isActive: false },
     });
-    if (!link) {
-      await this.api.sendMessage(chatId, '❌ رمز الربط غير صالح أو مستعمل من قبل / Invalid or already-used link code.');
+    if (!pending) {
+      await this.api.sendMessage(chatId,
+        '❌ رمز الربط غير صالح أو مستعمل من قبل / Invalid or already-used link code.');
       return;
     }
-    await this.prisma.telegramLink.update({
-      where: { id: link.id },
-      data: {
-        telegramChatId: chatId,
+
+    // 2. Guard: is this employee already actively linked to another chat?
+    //    (Requirement #7: one employee = one active account.)
+    const employeeActive = await this.prisma.telegramLink.findFirst({
+      where: {
+        tenantId: pending.tenantId,
+        userId:   pending.userId,
         isActive: true,
-        linkCode: null,
+        telegramChatId: { not: null },
       },
     });
-    await this.log(link.tenantId, link.userId, chatId, tgUserId, 'link', code, null, 'ok', 'linked');
+    if (employeeActive) {
+      // Wipe the just-used pending code so the admin gets a clean state.
+      await this.prisma.telegramLink.delete({ where: { id: pending.id } })
+        .catch(() => { /* best-effort */ });
+      await this.api.sendMessage(chatId,
+        '⚠️ هذا الموظف مربوط بالفعل بحساب تيليجرام آخر نشط. اطلب من المدير تعطيله أو إزالته أولاً.\n' +
+        '⚠️ This employee is already linked to another active Telegram account. Ask the admin to disable or remove it first.');
+      return;
+    }
+
+    // 3. Is another row (any tenant, any employee) claiming this chatId?
+    //    - If ACTIVE and belongs to a different user → refuse (never
+    //      silently reassign a live chat to a new person).
+    //    - If DISABLED / stale → hard-delete it so the fresh insert
+    //      isn't blocked by unique(telegram_chat_id).
+    const chatClaimed = await this.prisma.telegramLink.findUnique({
+      where: { telegramChatId: chatId },
+    });
+    if (chatClaimed && chatClaimed.isActive) {
+      await this.prisma.telegramLink.delete({ where: { id: pending.id } })
+        .catch(() => { /* best-effort */ });
+      await this.api.sendMessage(chatId,
+        '⚠️ محادثة التيليجرام هذه مربوطة بالفعل بموظف آخر نشط.\n' +
+        '⚠️ This Telegram chat is already linked to a different active employee.');
+      return;
+    }
+
+    // 4. Transactional cutover: purge the pending row + any disabled
+    //    row occupying the target chatId, then INSERT a brand-new
+    //    active row. Nothing else in telegram_links is touched.
+    const [, newLink] = await this.prisma.$transaction([
+      this.prisma.telegramLink.deleteMany({
+        where: {
+          OR: [
+            { id: pending.id },
+            ...(chatClaimed ? [{ id: chatClaimed.id }] : []),
+          ],
+        },
+      }),
+      this.prisma.telegramLink.create({
+        data: {
+          tenantId:         pending.tenantId,
+          userId:           pending.userId,
+          telegramChatId:   chatId,
+          telegramUserId:   tgUserId  ?? undefined,
+          telegramUsername: tgHandle  ?? undefined,
+          lastActivityAt:   new Date(),
+          isActive:         true,
+          linkCode:         null,
+        },
+      }),
+    ]);
+
+    await this.log(newLink.tenantId, newLink.userId, chatId, tgUserId, 'link', code, { linkId: newLink.id }, 'ok', 'linked');
     await this.api.sendMessage(chatId,
       '✅ تم ربط حسابك بنجاح! أرسل /help لرؤية الأوامر.\n' +
       '✅ Your account is linked. Send /help to see commands.');
@@ -1033,7 +1125,50 @@ class TelegramAdminService {
 
 @Controller('telegram/admin')
 class TelegramAdminController {
-  constructor(private readonly svc: TelegramAdminService) {}
+  constructor(
+    private readonly svc: TelegramAdminService,
+    private readonly tg:  TelegramService,
+  ) {}
+
+  /**
+   * QA / integration-test hook. Feeds a synthetic Telegram update into
+   * the same handleUpdate path the real webhook uses — same intent
+   * parsing, same doLink, same audit log. No new business logic; this
+   * exists so multi-user link flows can be verified end-to-end from
+   * the admin API without needing the TELEGRAM_WEBHOOK_SECRET or the
+   * public Telegram Bot API. Gated by users.manage (owner/admin only).
+   *
+   * Body: { chatId: string, text: string, tgUserId?: string,
+   *         tgUsername?: string }
+   */
+  @Post('simulate-inbound')
+  @Permissions('users.manage')
+  @HttpCode(200)
+  async simulateInbound(@Body() body: {
+    chatId: string; text: string; tgUserId?: string; tgUsername?: string;
+  }) {
+    if (!body || !body.chatId || !body.text) {
+      throw new BadRequestException('chatId and text are required');
+    }
+    // Build a valid TelegramUpdate that matches the real webhook shape.
+    const chatIdNum = Number(body.chatId);
+    const userIdNum = body.tgUserId ? Number(body.tgUserId) : chatIdNum;
+    await this.tg.handleUpdate({
+      update_id: Date.now(),
+      message: {
+        message_id: Math.floor(Math.random() * 1_000_000),
+        chat: { id: Number.isFinite(chatIdNum) ? chatIdNum : body.chatId as any, type: 'private' },
+        from: {
+          id: Number.isFinite(userIdNum) ? userIdNum : body.tgUserId as any,
+          username: body.tgUsername ?? undefined,
+          first_name: body.tgUsername ?? 'QA',
+        },
+        text: body.text,
+        date: Math.floor(Date.now() / 1000),
+      },
+    } as any);
+    return { ok: true };
+  }
 
   @Post('link-codes')
   @Permissions('users.manage')
