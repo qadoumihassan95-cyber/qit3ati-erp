@@ -113,7 +113,8 @@
     "settings": "Settings & Branding",
     "vehicles": "Vehicles",
     "workshop": "Workshop",
-    "roles": "Roles & Permissions"
+    "roles": "Roles & Permissions",
+    "fcc": "Financial Control Center"
   },
   "header": {
     "openMenu": "Open menu",

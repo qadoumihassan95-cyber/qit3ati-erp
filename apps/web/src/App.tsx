@@ -32,6 +32,7 @@ import BarcodeReceivingPage from '@/pages/parts/BarcodeReceivingPage';
 import VehiclesPage from '@/pages/vehicles/VehiclesPage';
 import WorkshopPage from '@/pages/workshop/WorkshopPage';
 import RolesPage from '@/pages/admin/RolesPage';
+import FinancialControlPage from '@/pages/fcc/FinancialControlPage';
 
 function Protected({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.token);
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="vehicles"     element={<VehiclesPage />} />
           <Route path="workshop"     element={<WorkshopPage />} />
           <Route path="admin/roles"  element={<RolesPage />} />
+          <Route path="financial-control" element={<FinancialControlPage />} />
           <Route path="stock"        element={<StockPage />} />
           <Route path="purchases"    element={<PurchasesPage />} />
           <Route path="transfers"    element={<TransfersPage />} />

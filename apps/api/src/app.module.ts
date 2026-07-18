@@ -35,6 +35,7 @@ import { FifoModule }      from './modules/fifo/fifo.module';
 import { VehiclesModule }  from './modules/vehicles/vehicles.module';
 import { WorkshopModule }  from './modules/workshop/workshop.module';
 import { RolesModule }     from './modules/roles/roles.module';
+import { FccModule }       from './modules/fcc/fcc.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { RolesModule }     from './modules/roles/roles.module';
     VehiclesModule,
     WorkshopModule,
     RolesModule,
+    FccModule,
   ],
   providers: [
     { provide: APP_GUARD,       useClass: ThrottlerGuard   },

@@ -60,6 +60,7 @@ const NAV: NavItem[] = [
   { to: '/cheques',   labelKey: 'nav.cheques',   icon: Banknote,        requires: 'cheques.view' },
   { to: '/jofotara',  labelKey: 'nav.jofotara',  icon: Landmark,        requires: 'jofotara.view' },
   { to: '/reports',   labelKey: 'nav.reports',   icon: FileBarChart,    requires: 'accounting.view' },
+  { to: '/financial-control', labelKey: 'nav.fcc', icon: ShieldCheck,   requires: 'accounting.view' },
   { to: '/branches',  labelKey: 'nav.branches',  icon: Building,        sectionKey: 'nav.section_admin', requires: 'settings.edit' },
   { to: '/admin/roles', labelKey: 'nav.roles',   icon: ShieldCheck,     requires: 'users.manage' },
   { to: '/papers',    labelKey: 'nav.papers',    icon: FileCheck,       requires: 'documents.view' },
